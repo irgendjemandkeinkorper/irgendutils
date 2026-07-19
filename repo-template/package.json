@@ -1,0 +1,27 @@
+{
+  "name": "@irgendutils/repo-template",
+  "version": "1.0.0",
+  "description": "Interactive repository template generator for consistent project structure",
+  "bin": {
+    "create-repo": "./src/create-repo.js",
+    "repo-template": "./src/create-repo.js"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "node src/create-repo.js",
+    "test": "echo 'Add tests here'",
+    "lint": "echo 'Add linting here'"
+  },
+  "keywords": [
+    "template",
+    "generator",
+    "scaffolding",
+    "boilerplate",
+    "repository"
+  ],
+  "author": "irgendjemandkeinkorper",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
