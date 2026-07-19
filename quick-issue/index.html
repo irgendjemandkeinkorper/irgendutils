@@ -1,0 +1,385 @@
+<title>Quick Issue — GitHub bug filer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --panel2: #1c2230; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #2f81f7; --accent-hover: #4c93ff;
+    --good: #2ea043; --danger: #f85149; --radius: 8px;
+    --sev-critical: #f85149; --sev-high: #fb8500; --sev-medium: #d29922; --sev-low: #3fb950;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 20px 80px; }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+  .hint { font-weight: 400; color: var(--muted); font-size: 12px; }
+  input[type=text], input[type=password], textarea, select {
+    width: 100%; background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 9px 11px; font-size: 14px; font-family: inherit; outline: none;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 64px; }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; min-width: 0; }
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  button { font-family: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--panel2); color: var(--text); padding: 9px 14px; font-size: 14px; font-weight: 600; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: var(--accent-hover); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.link { background: none; border: none; color: var(--muted); padding: 4px; font-weight: 400; text-decoration: underline; }
+  .sev-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sev-btn { flex: 1; min-width: 72px; text-align: center; border-width: 1.5px; }
+  .sev-btn[data-active="1"] { color: #fff; }
+  .sev-btn[data-sev="Critical"][data-active="1"] { background: var(--sev-critical); border-color: var(--sev-critical); }
+  .sev-btn[data-sev="High"][data-active="1"] { background: var(--sev-high); border-color: var(--sev-high); }
+  .sev-btn[data-sev="Medium"][data-active="1"] { background: var(--sev-medium); border-color: var(--sev-medium); }
+  .sev-btn[data-sev="Low"][data-active="1"] { background: var(--sev-low); border-color: var(--sev-low); }
+  #drop { border: 1.5px dashed var(--border); border-radius: var(--radius); padding: 20px; text-align: center;
+    color: var(--muted); font-size: 13px; transition: .15s; cursor: pointer; }
+  #drop.over { border-color: var(--accent); background: var(--panel2); color: var(--text); }
+  #thumbs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .thumb { position: relative; width: 92px; }
+  .thumb .media { width: 92px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--panel2); display: flex; align-items: center; justify-content: center; font-size: 26px; }
+  .thumb .name { font-size: 10px; color: var(--muted); margin-top: 3px; word-break: break-all; line-height: 1.2; }
+  .thumb .x { position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--danger); color: #fff; border: none; font-size: 13px; line-height: 1; display: flex;
+    align-items: center; justify-content: center; padding: 0; }
+  .status { padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-top: 12px; display: none; }
+  .status.show { display: block; }
+  .status.info { background: #1f2b40; color: #79b8ff; border: 1px solid #2b4b76; }
+  .status.err { background: #2d1618; color: #ff7b72; border: 1px solid #5c2b2b; }
+  .status.ok { background: #12261a; color: #56d364; border: 1px solid #2b5c38; }
+  .status a { color: inherit; font-weight: 700; }
+  .bar { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+  .grow { flex: 1; }
+  details.help { margin-top: 10px; }
+  details.help summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  details.help ol { font-size: 12px; color: var(--muted); padding-left: 18px; }
+  details.help code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; color: var(--text); }
+  .badge { font-size: 11px; padding: 1px 7px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted); }
+  .req::after { content: " *"; color: var(--danger); }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>⚡ Quick Issue</h1>
+    <span class="badge" id="userBadge">not connected</span>
+  </header>
+  <p class="sub">File a templated GitHub bug in seconds — environment, severity, repro, attachments.</p>
+
+  <!-- Auth -->
+  <div class="card" id="authCard">
+    <div class="field">
+      <label class="req" for="token">GitHub token <span class="hint">— fine-grained PAT with Issues + Contents (read/write)</span></label>
+      <div class="bar">
+        <input type="password" id="token" class="grow" placeholder="github_pat_… or ghp_…" autocomplete="off">
+        <button id="connect" class="primary">Connect</button>
+      </div>
+      <div class="bar">
+        <label style="margin:0; font-weight:400;"><input type="checkbox" id="remember"> Remember on this device</label>
+        <span class="grow"></span>
+        <button class="link" id="forget" style="display:none">Disconnect</button>
+      </div>
+      <details class="help">
+        <summary>How to create the token</summary>
+        <ol>
+          <li>GitHub → <b>Settings → Developer settings → Fine-grained tokens → Generate new token</b></li>
+          <li><b>Repository access:</b> the repos you'll file issues in (or All).</li>
+          <li><b>Permissions →</b> <code>Issues: Read and write</code>, <code>Contents: Read and write</code> (for attachment uploads), <code>Metadata: Read</code>.</li>
+          <li>Paste it above. Stored only in this browser's localStorage — never sent anywhere but api.github.com.</li>
+        </ol>
+      </details>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <div id="form" style="display:none">
+    <div class="card">
+      <div class="field">
+        <label class="req" for="repo">Repository</label>
+        <input type="text" id="repo" list="repoList" placeholder="type to filter your repos…" autocomplete="off">
+        <datalist id="repoList"></datalist>
+        <div class="hint" id="repoMeta" style="margin-top:5px"></div>
+      </div>
+      <div class="field">
+        <label class="req" for="title">Title</label>
+        <input type="text" id="title" placeholder="Short summary of the bug">
+      </div>
+      <div class="field">
+        <label>Severity</label>
+        <div class="sev-group" id="sevGroup"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="field">
+          <label for="stage">Stage</label>
+          <select id="stage">
+            <option>Production</option><option>Staging</option><option selected>Local</option><option>Dev</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="platform">Platform</label>
+          <select id="platform">
+            <option>Web — Chrome</option><option>Web — Safari</option><option>Web — Firefox</option><option>Web — Edge</option>
+            <option>Desktop — macOS</option><option>Desktop — Windows</option><option>Desktop — Linux</option>
+            <option>Mobile — iOS</option><option>Mobile — Android</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="envnote">Environment note <span class="hint">— versions, device, URL, build #…</span></label>
+        <input type="text" id="envnote" placeholder="e.g. v1.4.2, iPhone 14, staging.example.com">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label for="steps">Steps to reproduce</label>
+        <textarea id="steps" placeholder="1. …&#10;2. …&#10;3. …"></textarea>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="expected">Expected</label>
+          <textarea id="expected" placeholder="What should happen"></textarea>
+        </div>
+        <div class="field">
+          <label for="actual">Actual</label>
+          <textarea id="actual" placeholder="What actually happens"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Attachments <span class="hint" id="attHint"></span></label>
+      <div id="drop">Drag &amp; drop images / video here, paste, or <u>click to browse</u></div>
+      <input type="file" id="file" multiple accept="image/*,video/*" style="display:none">
+      <div id="thumbs"></div>
+    </div>
+
+    <div class="card">
+      <div class="bar">
+        <label style="margin:0;font-weight:400"><input type="checkbox" id="prefix" checked> Prefix title with severity, e.g. <code>[HIGH]</code></label>
+      </div>
+      <div class="bar" style="margin-top:14px">
+        <button id="submit" class="primary grow">Create issue &nbsp;<span class="hint" style="color:#cfe0ff">⌘/Ctrl+Enter</span></button>
+        <button id="reset" class="link">Clear form</button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "https://api.github.com";
+const $ = id => document.getElementById(id);
+const state = { token: "", user: null, repos: {}, sev: "Medium", files: [] };
+
+// ---------- token persistence ----------
+function apiHeaders() {
+  return { "Authorization": "Bearer " + state.token, "Accept": "application/vnd.github+json",
+           "X-GitHub-Api-Version": "2022-11-28" };
+}
+window.addEventListener("DOMContentLoaded", () => {
+  const saved = localStorage.getItem("qi_token");
+  if (saved) { $("token").value = saved; $("remember").checked = true; connect(); }
+  buildSeverity();
+});
+
+// ---------- connect ----------
+$("connect").onclick = connect;
+$("forget").onclick = () => { localStorage.removeItem("qi_token"); location.reload(); };
+async function connect() {
+  const tok = $("token").value.trim();
+  if (!tok) return;
+  state.token = tok;
+  setStatus("info", "Connecting…");
+  try {
+    const u = await ghJSON(API + "/user");
+    state.user = u;
+    $("userBadge").textContent = "@" + u.login;
+    $("forget").style.display = "";
+    if ($("remember").checked) localStorage.setItem("qi_token", tok);
+    else localStorage.removeItem("qi_token");
+    await loadRepos();
+    $("form").style.display = "";
+    clearStatus();
+  } catch (e) {
+    setStatus("err", "Could not connect: " + e.message + " — check the token's scopes.");
+  }
+}
+
+// ---------- load repos ----------
+async function loadRepos() {
+  const list = $("repoList"); list.innerHTML = ""; state.repos = {};
+  let page = 1, all = [];
+  while (page <= 5) {
+    const batch = await ghJSON(API + `/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member&page=${page}`);
+    all = all.concat(batch);
+    if (batch.length < 100) break;
+    page++;
+  }
+  all.forEach(r => {
+    state.repos[r.full_name] = { owner: r.owner.login, name: r.name, branch: r.default_branch, private: r.private };
+    const opt = document.createElement("option");
+    opt.value = r.full_name;
+    opt.label = (r.private ? "🔒 " : "") + (r.pushed_at ? r.pushed_at.slice(0,10) : "");
+    list.appendChild(opt);
+  });
+}
+$("repo").addEventListener("input", () => {
+  const r = state.repos[$("repo").value];
+  if (r) $("repoMeta").innerHTML = r.private
+      ? "🔒 Private repo — uploaded images won't render inline in the issue (they'll appear as links)."
+      : "🌐 Public repo — images will render inline. ✓";
+  else $("repoMeta").textContent = "";
+});
+
+// ---------- severity ----------
+function buildSeverity() {
+  const g = $("sevGroup");
+  ["Critical", "High", "Medium", "Low"].forEach(s => {
+    const b = document.createElement("button");
+    b.className = "sev-btn"; b.dataset.sev = s; b.textContent = s;
+    b.dataset.active = s === state.sev ? "1" : "0";
+    b.onclick = () => { state.sev = s; [...g.children].forEach(c => c.dataset.active = c.dataset.sev === s ? "1" : "0"); };
+    g.appendChild(b);
+  });
+}
+
+// ---------- attachments ----------
+const MAX_MB = 25;
+const drop = $("drop");
+drop.onclick = () => $("file").click();
+$("file").onchange = e => addFiles(e.target.files);
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => addFiles(e.dataTransfer.files));
+window.addEventListener("paste", e => { if (e.clipboardData?.files?.length) addFiles(e.clipboardData.files); });
+
+function addFiles(fileList) {
+  [...fileList].forEach(f => {
+    if (f.size > MAX_MB * 1024 * 1024) { setStatus("err", `"${f.name}" is over ${MAX_MB} MB — skipped.`); return; }
+    const item = { file: f, name: f.name, isImage: f.type.startsWith("image/") };
+    state.files.push(item);
+    if (item.isImage) { const url = URL.createObjectURL(f); item.preview = url; }
+    renderThumbs();
+  });
+}
+function renderThumbs() {
+  const c = $("thumbs"); c.innerHTML = "";
+  state.files.forEach((it, i) => {
+    const d = document.createElement("div"); d.className = "thumb";
+    const media = it.isImage
+      ? `<img class="media" src="${it.preview}">`
+      : `<div class="media">🎬</div>`;
+    d.innerHTML = media + `<div class="name">${it.name}</div><button class="x" title="remove">×</button>`;
+    d.querySelector(".x").onclick = () => { state.files.splice(i, 1); renderThumbs(); };
+    c.appendChild(d);
+  });
+}
+$("attHint").textContent = `— images embed inline; video attaches as a link (GitHub API limitation). Max ${MAX_MB} MB each.`;
+
+// ---------- submit ----------
+$("submit").onclick = submit;
+$("reset").onclick = () => { ["title","envnote","steps","expected","actual"].forEach(id => $(id).value = ""); state.files = []; renderThumbs(); clearStatus(); };
+document.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit(); });
+
+async function submit() {
+  const repo = state.repos[$("repo").value];
+  const title = $("title").value.trim();
+  if (!repo) return setStatus("err", "Pick a repository from the list.");
+  if (!title) return setStatus("err", "Give the issue a title.");
+
+  $("submit").disabled = true;
+  try {
+    // 1. upload attachments
+    const media = [];
+    for (let i = 0; i < state.files.length; i++) {
+      const it = state.files[i];
+      setStatus("info", `Uploading attachment ${i + 1}/${state.files.length}: ${it.name}…`);
+      media.push(await uploadFile(repo, it));
+    }
+    // 2. build body + create issue
+    setStatus("info", "Creating issue…");
+    const body = buildBody(repo, media);
+    const finalTitle = $("prefix").checked ? `[${state.sev.toUpperCase()}] ${title}` : title;
+    const issue = await ghJSON(`${API}/repos/${repo.owner}/${repo.name}/issues`, {
+      method: "POST", body: JSON.stringify({ title: finalTitle, body })
+    });
+    setStatus("ok", `✅ Created <a href="${issue.html_url}" target="_blank">#${issue.number}</a> in ${repo.owner}/${repo.name}. `
+      + `<a href="#" id="another">File another →</a>`);
+    $("another").onclick = e => { e.preventDefault(); $("reset").click(); };
+    window.open(issue.html_url, "_blank");
+  } catch (e) {
+    setStatus("err", "Failed: " + e.message);
+  } finally {
+    $("submit").disabled = false;
+  }
+}
+
+async function uploadFile(repo, it) {
+  const b64 = await toBase64(it.file);
+  const safe = it.name.replace(/[^\w.\-]+/g, "_");
+  const path = `issue-attachments/${Date.now()}-${safe}`;
+  const res = await ghJSON(`${API}/repos/${repo.owner}/${repo.name}/contents/${encodeURIComponent(path).replace(/%2F/g, "/")}`, {
+    method: "PUT",
+    body: JSON.stringify({ message: `attach: ${safe}`, content: b64 })
+  });
+  const raw = `https://raw.githubusercontent.com/${repo.owner}/${repo.name}/${repo.branch}/${path.split("/").map(encodeURIComponent).join("/")}`;
+  return { name: it.name, isImage: it.isImage, raw, blob: res.content.html_url };
+}
+
+function buildBody(repo, media) {
+  const L = [];
+  L.push(`### 🔺 Severity`, state.sev, "");
+  L.push(`### 🌐 Environment`,
+    `- **Stage:** ${$("stage").value}`,
+    `- **Platform:** ${$("platform").value}`);
+  if ($("envnote").value.trim()) L.push(`- **Notes:** ${$("envnote").value.trim()}`);
+  L.push("");
+  if ($("steps").value.trim()) L.push(`### 🔁 Steps to reproduce`, $("steps").value.trim(), "");
+  if ($("expected").value.trim()) L.push(`### ✅ Expected`, $("expected").value.trim(), "");
+  if ($("actual").value.trim()) L.push(`### ❌ Actual`, $("actual").value.trim(), "");
+  if (media.length) {
+    L.push(`### 📎 Attachments`);
+    media.forEach(m => {
+      if (m.isImage) L.push(`![${m.name}](${m.raw})`);
+      else L.push(`- 🎬 [${m.name}](${m.blob})`);
+    });
+    L.push("");
+  }
+  L.push("---", `<sub>Filed via Quick Issue</sub>`);
+  return L.join("\n");
+}
+
+// ---------- helpers ----------
+function toBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(",")[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+async function ghJSON(url, opts = {}) {
+  const r = await fetch(url, { ...opts, headers: { ...apiHeaders(), ...(opts.headers || {}) } });
+  const text = await r.text();
+  const data = text ? JSON.parse(text) : {};
+  if (!r.ok) throw new Error(data.message || `HTTP ${r.status}`);
+  return data;
+}
+function setStatus(kind, html) { const s = $("status"); s.className = "status show " + kind; s.innerHTML = html; }
+function clearStatus() { $("status").className = "status"; }
+</script>
