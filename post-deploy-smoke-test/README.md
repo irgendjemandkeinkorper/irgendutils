@@ -43,6 +43,48 @@ the failure reason) plus `results.json` for the pipeline.
 FAIL  3/6 passed, 3 failed, 0 warnings  (312ms against https://acme.example.com)
 ```
 
+## Gate a deploy (CI)
+
+The whole point: run `smoke` right after a deploy and let its exit code gate the
+pipeline. A non-zero exit stops the rollout (or triggers rollback); a hung URL
+can't stall it thanks to the hard per-check timeout.
+
+GitHub Actions — smoke-test the production origin after deploy, roll back on failure:
+
+```yaml
+# .github/workflows/deploy.yml (excerpt)
+  post-deploy-smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Smoke-test the deploy
+        working-directory: post-deploy-smoke-test
+        env:
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}   # for authed checks
+        run: node src/cli.js run --no-color                 # exits non-zero on any failure
+      - name: Roll back on failure
+        if: failure()
+        run: ./scripts/rollback.sh                          # your rollback step
+      - name: Publish results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: smoke-results, path: post-deploy-smoke-test/results.json }
+```
+
+Plain shell (any CI, or a deploy hook) — the `||` branch only runs on failure:
+
+```sh
+node src/cli.js run --fail-fast --no-color || {
+  echo "Smoke test failed — rolling back"; ./rollback.sh; exit 1;
+}
+```
+
+Point `--url` at the origin host (not the CDN) so a cached-good copy can't mask a
+broken deploy, or set `cache_bust: true` on the critical checks.
+
 ## Config (`smoke.yml`)
 
 Per-site config lives with the site. Copy `smoke.example.yml` and edit:
