@@ -4,3 +4,4 @@ report/
 baseline/
 out/
 *.log
+qa.config.yml
