@@ -67,6 +67,17 @@ export function createFakeAdapter(fixture) {
       return wp[normalizeUrl(url)] || { restAvailable: false, note: 'no WP fixture info for this URL' };
     },
 
+    // Auth verification for the connectivity preflight. Reads an optional
+    // fixture `auth` map, else derives from whether WP REST info is available.
+    async verifyAuth(url) {
+      const key = normalizeUrl(url);
+      const auth = keyByUrl(data.auth)[key];
+      if (auth) return auth;
+      const info = wp[key];
+      if (info && info.restAvailable) return { ok: true, status: 200 };
+      return { ok: false, status: 0, error: 'no auth fixture for this URL' };
+    },
+
     async close() {},
   };
 }

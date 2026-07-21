@@ -69,6 +69,20 @@ test('qa report points at the latest report', () => {
   assert.match(r.stdout.trim(), /index\.html$/);
 });
 
+test('qa preflight against a reachable fixture exits 0', () => {
+  const r = qa(['preflight', '-c', CONFIG]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Preflight passed/);
+});
+
+test('qa preflight against an unreachable target exits 2 and names it', () => {
+  const down = path.join(ROOT, 'fixtures', 'qa.config.down.yml');
+  const r = qa(['preflight', '-c', down]);
+  assert.equal(r.status, 2);
+  assert.match(r.stdout, /Preflight FAILED/);
+  assert.match(r.stdout, /down\.example\.com/);
+});
+
 test('missing config exits 2 with a helpful message', () => {
   const r = qa(['run', '-c', '/no/such/qa.config.yml']);
   assert.equal(r.status, 2);

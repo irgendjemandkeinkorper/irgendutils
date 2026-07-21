@@ -254,6 +254,38 @@ export function createPlaywrightAdapter({ timeoutMs = 30000, log = () => {} } = 
       return info;
     },
 
+    /**
+     * Verify an Application Password works, for the connectivity preflight.
+     * One authed GET to the REST "me" endpoint. HTTPS only; never logs the
+     * secret. Returns { ok, status, error? }.
+     */
+    async verifyAuth(url, auth) {
+      const origin = new URL(url).origin;
+      if (!origin.startsWith('https:')) {
+        return { ok: false, status: 0, error: 'refusing to send an Application Password over plain http' };
+      }
+      if (!auth?.user || !auth?.password) return { ok: false, status: 0, error: 'no credentials provided' };
+      const headers = {
+        accept: 'application/json',
+        authorization: 'Basic ' + Buffer.from(`${auth.user}:${auth.password}`).toString('base64'),
+      };
+      try {
+        log(`AUTH ${origin}/wp-json/wp/v2/users/me`);
+        const res = await fetch(`${origin}/wp-json/wp/v2/users/me?context=edit`, {
+          headers,
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+        await res.body?.cancel?.().catch(() => {});
+        if (res.status === 200) return { ok: true, status: 200 };
+        if (res.status === 401 || res.status === 403) {
+          return { ok: false, status: res.status, error: `authentication failed (HTTP ${res.status}) — check the user and Application Password` };
+        }
+        return { ok: false, status: res.status, error: `unexpected HTTP ${res.status} from the REST me endpoint` };
+      } catch (err) {
+        return { ok: false, status: 0, error: err?.cause?.code || err.message };
+      }
+    },
+
     async close() {
       if (browserPromise) {
         const browser = await browserPromise.catch(() => null);

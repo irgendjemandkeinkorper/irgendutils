@@ -47,12 +47,43 @@ qa run                          # every target in the config, all checks
 qa run https://staging.site/    # a single target (test staging first)
 qa run --checks visual,links    # only the named checks
 qa baseline https://site/       # capture/refresh a visual baseline for a site
+qa preflight                    # connectivity check only (reachability + auth)
 qa report [--open]              # print (and optionally open) the latest report
 ```
 
 Useful flags: `-c/--config <file>`, `-o/--out <dir>`, `--json` (print
-`results.json` instead of the table), `--fixture <capture.json>` (offline run),
-`--no-color`.
+`results.json` instead of the table), `--skip-preflight`, `--fixture
+<capture.json>` (offline run), `--no-color`.
+
+## Connectivity preflight
+
+Before a **live** run, `qa run` performs a fast preflight: it confirms the
+template and every target is reachable, and — when `auth` is configured — that
+the Application Password actually works. This catches DNS/TLS/wrong-URL and
+bad-credential problems in seconds, instead of as a browser run full of
+confusing failures.
+
+- An **unreachable** target aborts the run before the browser launches (exit 2).
+- A reachable site with **failing auth** is a warning, not a stop — the public
+  checks still run and `wp_hygiene` degrades to a skip note.
+- `--skip-preflight` bypasses it; the fixture/offline adapter skips it (nothing
+  to reach).
+
+Run it on its own to validate setup before wiring anything into CI:
+
+```sh
+qa preflight        # exit 0 = all reachable, 2 = something is unreachable
+```
+
+```
+Preflight — connectivity check
+✓ template https://_template.example.com/  HTTP 200
+✓ target   https://acme.example.com/  HTTP 200
+    auth ok (Application Password valid)
+✗ target   https://beta.example.com/  getaddrinfo ENOTFOUND beta.example.com
+
+Preflight FAILED — one or more targets are unreachable. Aborting before the browser run.
+```
 
 Exit codes: `0` all targets passed, `1` at least one failure (wire this to your
 deploy gate / rollback), `2` usage or config error.

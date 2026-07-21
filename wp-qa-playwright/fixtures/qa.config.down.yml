@@ -1,0 +1,19 @@
+# Fixture config with one unreachable target (down.example.com has no fixture
+# entry, so the fake adapter reports it unreachable). Used to test that the
+# preflight fails fast on an unreachable target.
+template_url: https://template.example.com/
+
+targets:
+  - https://good.example.com/
+  - https://down.example.com/
+
+viewports: [360, 1280]
+
+thresholds:
+  pixel_diff_pct: 0.15
+  max_broken_links: 0
+
+checks: [links]
+
+adapter: fake
+fixture: ./capture.json

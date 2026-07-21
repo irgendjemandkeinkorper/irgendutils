@@ -8,9 +8,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
-import { loadConfig, loadEnvFile, normalizeChecks } from './config.js';
+import { loadConfig, loadEnvFile, normalizeChecks, resolveAuth } from './config.js';
 import { runQa, severityCounts } from './runner.js';
 import { writeReport, saveBaseline, loadBaseline } from './report.js';
+import { preflight, formatPreflight } from './preflight.js';
 
 const HELP = `qa — WordPress QA vs. a template (read-only, exits non-zero on failure)
 
@@ -19,11 +20,13 @@ Usage:
   qa run <url>                    run a single target (added to config targets)
   qa run --checks visual,links    only the named checks
   qa baseline <url>               capture/refresh a visual baseline for <url>
+  qa preflight                    connectivity check only (reachability + auth)
   qa report [--open]              show (and optionally open) the latest report
 
 Options:
   -c, --config <file>   config file (default: qa.config.yml)
       --checks <list>   comma-separated subset: ${normalizeChecks([]).join(', ')}
+      --skip-preflight  skip the connectivity check before a live run
       --fixture <file>  run offline against a capture.json (uses the fake adapter)
       --adapter <file>  advanced: a module exporting createAdapter(cfg)
   -o, --out <dir>       report output dir (default: from config or ./report)
@@ -31,6 +34,10 @@ Options:
       --open            (report) open the latest report in a browser
       --no-color        disable ANSI colors
   -h, --help            show this help
+
+Before a live run, a preflight checks every target (and the template) is
+reachable and that any configured Application Password works — so DNS/TLS/URL
+and credential problems fail fast. Unreachable targets abort the run (exit 2).
 
 Exit codes: 0 = all targets passed, 1 = at least one failure, 2 = usage/config error.`;
 
@@ -41,6 +48,7 @@ async function main(argv) {
     options: {
       config: { type: 'string', short: 'c', default: 'qa.config.yml' },
       checks: { type: 'string' },
+      'skip-preflight': { type: 'boolean', default: false },
       fixture: { type: 'string' },
       adapter: { type: 'string' },
       out: { type: 'string', short: 'o' },
@@ -60,8 +68,8 @@ async function main(argv) {
     console.log(HELP);
     return 2;
   }
-  if (!['run', 'baseline', 'report'].includes(command)) {
-    console.error(`Unknown command "${command}". Try: qa run | qa baseline <url> | qa report  (or --help)`);
+  if (!['run', 'baseline', 'report', 'preflight'].includes(command)) {
+    console.error(`Unknown command "${command}". Try: qa run | qa baseline <url> | qa preflight | qa report  (or --help)`);
     return 2;
   }
 
@@ -90,6 +98,7 @@ async function main(argv) {
   if (fs.existsSync(dotenv)) loadEnvFile(dotenv);
 
   if (command === 'report') return cmdReport(cfg, values);
+  if (command === 'preflight') return cmdPreflight(cfg, values, color);
   if (command === 'baseline') return cmdBaseline(cfg, values, positionals[1], color);
   return cmdRun(cfg, values, positionals[1], color);
 }
@@ -102,6 +111,22 @@ async function cmdRun(cfg, values, singleTarget, color) {
   }
 
   const adapter = await makeAdapter(cfg, values, (msg) => process.stderr.write(`  ${msg}\n`));
+
+  // Connectivity preflight before a live browser run: reachability + auth, so
+  // DNS/TLS/URL/credential problems fail fast. Only for the live adapter (the
+  // fake/fixture adapter has nothing to reach); --skip-preflight opts out.
+  if (adapter.name === 'playwright' && !values['skip-preflight']) {
+    const pf = await preflight(adapter, cfg, {
+      auth: resolveAuth(cfg, process.env),
+      log: (m) => process.stderr.write(`${m}\n`),
+    });
+    console.log(formatPreflight(pf, { color }));
+    console.log('');
+    if (!pf.ok) {
+      await adapter.close?.();
+      return 2;
+    }
+  }
 
   // Pre-load any stored baselines (used as the visual reference when there is
   // no template_url). Disk I/O stays out of the runner.
@@ -149,6 +174,24 @@ async function cmdBaseline(cfg, values, url, color) {
     console.log(paint(color, 'green', `✓ baseline captured for ${url}`));
     for (const f of written) console.log(`  ${f}`);
     return 0;
+  } finally {
+    await adapter.close?.();
+  }
+}
+
+async function cmdPreflight(cfg, values, color) {
+  if (!cfg.targets.length && !cfg.template_url) {
+    console.error('Nothing to preflight: set template_url and/or targets in the config.');
+    return 2;
+  }
+  const adapter = await makeAdapter(cfg, values, (msg) => process.stderr.write(`  ${msg}\n`));
+  try {
+    const pf = await preflight(adapter, cfg, {
+      auth: resolveAuth(cfg, process.env),
+      log: (m) => process.stderr.write(`${m}\n`),
+    });
+    console.log(formatPreflight(pf, { color }));
+    return pf.ok ? 0 : 2;
   } finally {
     await adapter.close?.();
   }
