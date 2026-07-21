@@ -127,8 +127,13 @@ Application Password comes from the env var named by `auth.app_password_env`
    stylesheet is status-checked. 4xx/5xx and unreachable assets count toward
    `max_broken_links`; **mixed content** (http asset on an https page) is always
    an error; long redirect chains warn.
-4. **Console + network** — any error-level console message or failed request
-   during load is a finding.
+4. **Console + network** — an error-level console message or a genuinely failed
+   resource request is a finding. Two benign patterns are downgraded so they
+   don't fail every real site: third-party **analytics/beacon** endpoints
+   (Google Analytics, GTM, Meta Pixel, …) are info-only, and **aborted**
+   requests (`net::ERR_ABORTED`, common for beacons cancelled on unload) are
+   warnings. Real breakage — `ERR_NAME_NOT_RESOLVED`, `ERR_CONNECTION_REFUSED`,
+   timeouts, 4xx/5xx — stays an error.
 5. **Responsive** — no horizontal scroll at mobile widths, tap targets don't
    overlap, and the nav collapses where expected.
 6. **WP hygiene** (when authenticated) — active theme matches the template,

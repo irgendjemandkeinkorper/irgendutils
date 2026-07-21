@@ -30,7 +30,7 @@
     "https://broken.example.com/": {
       "html": "<!doctype html><html><head><title>Broken</title><link rel=\"stylesheet\" href=\"/style.css\"></head><body><header><a href=\"/\">Acme</a></header><nav role=\"navigation\"><a href=\"/\">Home</a> <a href=\"/about\">About</a> <a href=\"/missing\">Gone</a></nav><main><h1>Oops</h1><!-- wp:paragraph --><p>Broken</p><!-- /wp:paragraph --><img src=\"http://insecure.example.com/x.png\" alt=\"x\"></main></body></html>",
       "console": [{ "type": "error", "text": "Uncaught TypeError: cart is undefined", "viewport": 360 }],
-      "failedRequests": [{ "url": "https://broken.example.com/app.js", "reason": "net::ERR_ABORTED", "viewport": 360 }],
+      "failedRequests": [{ "url": "https://broken.example.com/app.js", "reason": "net::ERR_CONNECTION_REFUSED", "viewport": 360 }],
       "viewports": {
         "360": { "scrollWidth": 812, "viewportWidth": 360, "navCollapsed": false, "tapTargets": [] },
         "1280": { "scrollWidth": 1280, "viewportWidth": 1280, "navCollapsed": false, "tapTargets": [] }
