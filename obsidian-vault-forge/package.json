@@ -1,0 +1,26 @@
+{
+  "name": "@irgendutils/obsidian-vault-forge",
+  "version": "1.0.0",
+  "description": "Scaffold a linked, searchable Obsidian vault for a project from a project.yml manifest — one command turns scattered context into a navigable knowledge base. Idempotent, non-clobbering, and it never writes secrets.",
+  "type": "module",
+  "bin": {
+    "vault": "./src/cli.js"
+  },
+  "scripts": {
+    "dev": "node src/cli.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "obsidian",
+    "vault",
+    "markdown",
+    "knowledge-management",
+    "scaffold",
+    "wordpress"
+  ],
+  "author": "irgendjemandkeinkorper",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,19 @@
+# Project manifest for `vault forge`. Copy to project.yml and edit.
+# Only `name` is required; a slug is derived from it if omitted.
+name: Acme Redesign
+client: Acme Co
+slug: acme-redesign          # vault dir under -o will be this
+status: active
+site_urls:
+  - https://acme.example.com
+stakeholders:
+  - { name: Jane Doe, role: Client PM, email: jane@acme.com }
+  - { name: Sam Lee, role: Developer, email: sam@example.com }
+links:
+  staging: https://staging.acme.example.com
+  repo: git@github.com:acme/redesign.git
+  drive: https://drive.example.com/acme
+tags: [wordpress, redesign]
+
+# NOTE: never put credentials here. The generated "Access & Credentials" note
+# holds pointers to a secrets manager only — the forge refuses to write secrets.

@@ -1,0 +1,15 @@
+name: Acme Redesign
+client: Acme Co
+slug: acme-redesign
+status: active
+site_urls:
+  - https://acme.example.com
+  - https://user:hunter2@old.acme.example.com   # creds get stripped on write
+stakeholders:
+  - { name: Jane Doe, role: Client PM, email: jane@acme.com }
+  - { name: Sam Lee, role: Developer, email: sam@example.com }
+  - { name: "Jane Doe", role: Advisor, email: jane2@acme.com }   # name collision
+links:
+  staging: https://staging.acme.example.com
+  repo: git@github.com:acme/redesign.git
+tags: [wordpress, redesign]
