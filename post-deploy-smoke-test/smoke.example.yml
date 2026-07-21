@@ -1,0 +1,28 @@
+# Post-deploy smoke test config. Copy to smoke.yml next to your site/project.
+# Keep the list SHORT — this is a deploy gate, not a QA suite.
+
+base_url: https://acme.example.com
+timeout_ms: 8000        # hard per-check timeout (a hung URL cannot stall the run)
+soft_budget_ms: 2000    # slower than this => warning (not a failure)
+# min_body_bytes: 100   # bodies smaller than this on a 2xx look like a white screen
+
+checks:
+  # path, expected status (default 200), and a stable "proof of life" string.
+  # Avoid volatile content (prices, timestamps) — pick stable proof strings.
+  - { path: /,                 status: 200, contains: "Acme" }
+  - { path: /shop,             status: 200, contains: "Add to cart" }
+  - { path: /wp-json,          status: 200, json: true }
+  - { path: /old-page,         status: 301, redirects_to: /new-page }
+  - { path: /wp-login.php,     status: 200, contains: "Log In" }
+  # Per-check extras:
+  #   max_ms: 4000        make slowness a FAILURE for this check
+  #   timeout_ms: 3000    override the hard timeout for this check
+  #   cache_bust: true    append ?smoke=<ts> so a CDN can't serve a cached copy
+  #   browser: true       fetch with Playwright (requires `npm i -D playwright`)
+
+authed:
+  # REST-first authed check via an Application Password. The secret comes from
+  # the env var named below — NEVER from this file.
+  - { path: /wp-json/wp/v2/users/me, user: automation, app_password_env: WP_APP_PASSWORD, status: 200, json: true }
+
+fail_fast: false        # run all checks and report all failures

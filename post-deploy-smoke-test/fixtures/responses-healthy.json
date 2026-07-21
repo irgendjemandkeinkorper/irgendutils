@@ -1,0 +1,39 @@
+{
+  "/": {
+    "status": 200,
+    "headers": { "content-type": "text/html; charset=utf-8" },
+    "body": "<!doctype html><html><head><title>Acme — Home</title></head><body><header><h1>Acme Widgets</h1><nav><a href=\"/shop\">Shop</a></nav></header><main><p>Welcome to Acme, purveyors of fine widgets since 1987. Browse our catalog and enjoy free shipping on orders over $50.</p></main><footer>© Acme Inc.</footer></body></html>",
+    "durationMs": 142
+  },
+  "/shop": {
+    "status": 200,
+    "headers": { "content-type": "text/html; charset=utf-8" },
+    "body": "<!doctype html><html><head><title>Shop — Acme</title></head><body><main><ul class=\"products\"><li><h2>Widget Classic</h2><button class=\"add_to_cart_button\">Add to cart</button></li><li><h2>Widget Pro</h2><button class=\"add_to_cart_button\">Add to cart</button></li></ul></main></body></html>",
+    "durationMs": 260
+  },
+  "/wp-json": {
+    "status": 200,
+    "headers": { "content-type": "application/json; charset=utf-8" },
+    "body": "{\"name\":\"Acme\",\"description\":\"Fine widgets\",\"url\":\"https://acme.example.com\",\"namespaces\":[\"wp/v2\",\"oembed/1.0\"]}",
+    "durationMs": 95
+  },
+  "/old-page": {
+    "status": 301,
+    "headers": { "location": "https://acme.example.com/new-page" },
+    "body": "",
+    "durationMs": 40
+  },
+  "/wp-login.php": {
+    "status": 200,
+    "headers": { "content-type": "text/html; charset=utf-8" },
+    "body": "<!doctype html><html><head><title>Log In ‹ Acme — WordPress</title></head><body class=\"login\"><form name=\"loginform\" id=\"loginform\" action=\"wp-login.php\" method=\"post\"><label for=\"user_login\">Username or Email Address</label><input type=\"submit\" value=\"Log In\"/></form></body></html>",
+    "durationMs": 110
+  },
+  "/wp-json/wp/v2/users/me": {
+    "auth": true,
+    "status": 200,
+    "headers": { "content-type": "application/json; charset=utf-8" },
+    "body": "{\"id\":7,\"name\":\"automation\",\"slug\":\"automation\",\"capabilities\":{\"read\":true}}",
+    "durationMs": 130
+  }
+}

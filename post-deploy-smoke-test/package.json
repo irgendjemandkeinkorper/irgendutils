@@ -1,0 +1,25 @@
+{
+  "name": "@irgendutils/post-deploy-smoke-test",
+  "version": "1.0.0",
+  "description": "Post-deploy smoke test: hit critical URLs, assert status codes and proof-of-life content, exit non-zero on any failure so it can gate a rollback.",
+  "type": "module",
+  "bin": {
+    "smoke": "./src/cli.js"
+  },
+  "scripts": {
+    "dev": "node src/cli.js run",
+    "test": "node --test"
+  },
+  "keywords": [
+    "smoke-test",
+    "deploy",
+    "ci",
+    "wordpress",
+    "healthcheck"
+  ],
+  "author": "irgendjemandkeinkorper",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

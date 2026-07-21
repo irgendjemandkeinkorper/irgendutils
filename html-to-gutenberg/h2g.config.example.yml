@@ -1,0 +1,20 @@
+# html-to-gutenberg config (copy to h2g.config.yml)
+# Secrets never live here — they come from env vars (see .env.example).
+
+wp:
+  # rest | wpcli — how --push and --media import talk to WordPress
+  mode: rest
+  # REST base URL; can also come from WP_BASE_URL
+  base_url: https://example.com
+  # WP-CLI install path (wp.mode = wpcli); can also come from WP_PATH
+  wp_path: /var/www/example
+
+media:
+  # link (keep external URLs, default) | import (upload to the WP media library)
+  mode: link
+  # Base URL used to resolve relative src attributes in the input HTML
+  base: https://example.com
+
+convert:
+  # When true, exit non-zero if any core/html fallback or dropped node occurs
+  strict: false

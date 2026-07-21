@@ -1,0 +1,21 @@
+# secaudit config — copy to config.yml and edit.
+# No secrets belong in this file; it only names locations to scan.
+
+scan:
+  roots: [~/sites/acme, ~/sites/beta]
+  include_git_history: true
+  ignore: [node_modules, vendor, .git/objects, "*.min.js", "*.lock", report]
+  allowlist_file: .secretsallow      # known-safe/test values, hashed (sha256, one per line)
+
+rules: [aws, gcp, stripe, github_pat, private_key, generic_high_entropy, db_url, wp_salts]
+
+web_probe:                            # optional: check for publicly reachable config
+  urls: [https://acme.example.com]
+  paths: [/.env, /wp-config.php.bak, /.git/config, /config.php~]
+
+env_drift:
+  envs:
+    - { name: local,   file: .env }
+    - { name: staging, file: .env.staging }
+    - { name: prod,    file: .env.prod }
+  compare: keys_and_shape             # "keys" only, or "keys_and_shape" (url/number/bool/empty)

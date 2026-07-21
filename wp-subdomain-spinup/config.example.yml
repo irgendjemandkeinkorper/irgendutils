@@ -1,0 +1,23 @@
+# WP Subdomain Spinup — configuration
+# Copy to config.yml and adjust. Secrets are NEVER stored here — the config
+# only names the env vars to read them from.
+
+mode: multisite            # multisite | standalone
+network_url: https://example.com
+
+# Optional. WP-CLI over SSH is used ONLY for the one step REST cannot do:
+# creating (and deleting) a site inside a multisite network. Everything else
+# runs over the REST API. Leave unset on hosts without shell access — spinup
+# will print the exact manual command instead of failing.
+wp_cli_ssh: deploy@example.com:/var/www/example.com
+
+template_slug: _template   # source site to clone
+
+rest:
+  base_url: https://{sub}.example.com   # {sub} is replaced with the subdomain
+  user: automation
+  app_password_env: WP_APP_PASSWORD     # env var holding the app password
+
+dns:
+  provider: cloudflare     # cloudflare | route53 | manual
+  zone: example.com

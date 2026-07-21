@@ -1,0 +1,20 @@
+# SQL Slow-Query Analyzer configuration (copy to config.yml)
+
+source: slowlog            # slowlog | performance_schema
+slow_log_path: /var/log/mysql/slow.log
+
+# Only needed for EXPLAIN + information_schema index cross-check + WP autoload check.
+# Omit the whole block (or run with --no-db) for pure log analysis.
+db:
+  host: 127.0.0.1
+  port: 3306
+  name: sitedb
+  user: readonly
+  pass_env: DB_RO_PASSWORD   # env var holding the password — never put secrets here
+
+top_n: 20                  # diagnose the top N offenders
+min_total_time_ms: 500     # ignore digests whose total time is below this
+
+# Optional WordPress-specific checks
+wp:
+  autoload_warn_kb: 800    # warn when total autoloaded wp_options payload exceeds this

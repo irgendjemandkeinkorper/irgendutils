@@ -1,0 +1,24 @@
+{
+  "name": "@irgendutils/html-to-gutenberg",
+  "version": "0.1.0",
+  "description": "Convert a static HTML page into canonical Gutenberg block markup, optionally push it to WordPress and render-verify it in the block editor.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "h2g": "src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "start": "node src/cli.js"
+  },
+  "keywords": [
+    "wordpress",
+    "gutenberg",
+    "blocks",
+    "html",
+    "converter"
+  ]
+}

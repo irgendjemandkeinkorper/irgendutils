@@ -1,0 +1,16 @@
+{
+  "name": "@irgendutils/backup-restore-verifier",
+  "version": "0.1.0",
+  "description": "Prove backups actually work: fetch the latest dump, restore it into a throwaway verify_<ts> database, run integrity + smoke checks, tear down, report pass/fail.",
+  "type": "module",
+  "bin": {
+    "verifybak": "src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

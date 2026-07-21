@@ -1,0 +1,34 @@
+# backup-restore-verifier — copy to config.yml and adjust.
+# Secrets NEVER go in this file; they come from env vars (see .env.example).
+
+source:
+  type: file                    # file | s3 | wp-cli-export (s3/wp-cli-export need the live adapter)
+  db_dump: /backups/latest.sql.gz
+  files_archive: /backups/uploads-latest.tar.gz   # optional, informational
+  max_age_hours: 48             # backup older than this is a finding (stale backup)
+  min_size_bytes: 10240         # backup smaller than this is a finding (tiny/empty dump)
+
+scratch:
+  db_name_prefix: verify_       # scratch DBs are named <prefix><timestamp>; teardown refuses to drop anything else
+  mysql_host: 127.0.0.1
+  mysql_admin_user: root
+  mysql_admin_env: MYSQL_ADMIN_PW   # NAME of the env var holding the admin password
+  spinup_subdomain: verify      # base subdomain used with --with-smoke (via wp-subdomain-spinup)
+
+checks: [row_counts, key_tables, wp_bootstrap, smoke_urls]
+
+# Tables that must exist after restore (falls back to key_tables when empty)
+expected_tables: [wp_options, wp_users, wp_usermeta, wp_posts, wp_postmeta]
+# Tables whose row counts must be non-zero and sane vs the previous run
+key_tables: [wp_posts, wp_users, wp_options]
+# A key table shrinking by more than this percentage vs the last run FAILS the run
+row_count_max_shrink_pct: 50
+
+retain_on_failure: false        # keep the scratch DB for debugging when a run fails
+notify_on: [failure]
+
+driver: mysql                   # mysql = live adapter (lazy-loaded, needs mysql/wp-cli) | fake = offline in-memory
+wp_path: /var/www/example.com   # WP install used by wp-cli for the wp_bootstrap checks (live driver only)
+
+report_dir: report
+history_file: report/history.json

@@ -1,0 +1,26 @@
+{
+  "name": "@irgendutils/secrets-env-audit",
+  "version": "1.0.0",
+  "description": "Secrets leak scanner (worktree + git history) and .env drift auditor with optional web exposure probe",
+  "bin": {
+    "secaudit": "./src/cli.js"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "node src/cli.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "secrets",
+    "security",
+    "audit",
+    "env",
+    "drift",
+    "scanner"
+  ],
+  "author": "irgendjemandkeinkorper",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

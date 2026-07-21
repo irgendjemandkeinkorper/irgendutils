@@ -1,0 +1,28 @@
+{
+  "name": "@irgendutils/prelaunch-auditor",
+  "version": "0.1.0",
+  "description": "Pre-launch go/no-go auditor: SEO, accessibility, performance, security, content readiness, and analytics checks producing a single pass/fail scorecard. Exits non-zero on blockers.",
+  "type": "module",
+  "bin": {
+    "prelaunch-auditor": "./src/cli.js",
+    "audit": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "audit": "node src/cli.js"
+  },
+  "keywords": [
+    "audit",
+    "seo",
+    "accessibility",
+    "lighthouse",
+    "security-headers",
+    "wordpress",
+    "pre-launch"
+  ],
+  "author": "irgendjemandkeinkorper",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "mobile": {
+    "lcp_ms": 2500,
+    "cls": 0.1,
+    "tbt_ms": 300,
+    "performance_score": 0.8
+  },
+  "desktop": {
+    "lcp_ms": 1800,
+    "cls": 0.1,
+    "tbt_ms": 200,
+    "performance_score": 0.9
+  }
+}

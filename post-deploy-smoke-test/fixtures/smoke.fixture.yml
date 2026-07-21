@@ -1,0 +1,13 @@
+# Fixture config used by the tests and offline CLI runs (mirrors the spec).
+base_url: https://acme.example.com
+timeout_ms: 500
+soft_budget_ms: 2000
+checks:
+  - { path: /,                 status: 200, contains: "Acme" }
+  - { path: /shop,             status: 200, contains: "Add to cart" }
+  - { path: /wp-json,          status: 200, json: true }
+  - { path: /old-page,         status: 301, redirects_to: /new-page }
+  - { path: /wp-login.php,     status: 200, contains: "Log In" }
+authed:
+  - { path: /wp-json/wp/v2/users/me, user: automation, app_password_env: WP_APP_PASSWORD, status: 200, json: true }
+fail_fast: false

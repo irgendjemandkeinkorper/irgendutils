@@ -1,0 +1,7 @@
+# One healthy check plus one URL that hangs forever — proves the hard
+# per-check timeout bounds the run.
+base_url: https://acme.example.com
+timeout_ms: 200
+checks:
+  - { path: /,     status: 200, contains: "Acme" }
+  - { path: /hang, status: 200, contains: "never" }

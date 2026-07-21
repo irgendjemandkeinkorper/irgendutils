@@ -1,0 +1,16 @@
+{
+  "name": "@irgendutils/wp-charset-collation-checker",
+  "version": "1.0.0",
+  "description": "Scan a (WordPress) database for charset/collation mismatches vs utf8mb4 and generate safe conversion DDL. Read-only by default; conversion is gated behind --apply plus a fresh-backup precondition.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "charset": "src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}

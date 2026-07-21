@@ -1,0 +1,27 @@
+{
+  "name": "@irgendutils/wp-qa-playwright",
+  "version": "1.0.0",
+  "description": "QA a live WordPress site against a template/reference: structural diff, visual regression, broken links, console errors, responsive checks, and WP hygiene",
+  "type": "module",
+  "bin": {
+    "qa": "./src/cli.js",
+    "wp-qa": "./src/cli.js"
+  },
+  "scripts": {
+    "qa": "node src/cli.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "wordpress",
+    "qa",
+    "playwright",
+    "visual-regression",
+    "broken-links",
+    "ci"
+  ],
+  "author": "irgendjemandkeinkorper",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.17.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@irgendutils/dns-ssl-uptime-monitor",
+  "version": "1.0.0",
+  "description": "DNS / SSL / uptime monitor: watches a fleet of sites for expiring TLS certs, DNS drift, and downtime; renders a status page and alerts before things break",
+  "type": "module",
+  "bin": {
+    "monitor": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js run",
+    "test": "node --test"
+  },
+  "keywords": [
+    "monitoring",
+    "uptime",
+    "tls",
+    "ssl",
+    "dns",
+    "rdap",
+    "status-page"
+  ],
+  "author": "irgendjemandkeinkorper",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

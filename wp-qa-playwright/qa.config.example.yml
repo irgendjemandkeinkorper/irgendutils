@@ -1,0 +1,43 @@
+# WP QA configuration (copy to qa.config.yml and edit).
+# Secrets never live here — auth.app_password_env names an ENV VAR that holds
+# the Application Password.
+
+template_url: https://_template.example.com/
+
+targets:
+  - https://acme.example.com/
+  - https://beta.example.com/
+
+viewports: [360, 768, 1280]
+
+thresholds:
+  pixel_diff_pct: 0.15        # fail a page whose pixel diff exceeds this percent
+  max_broken_links: 0         # fail when more links/assets than this are broken
+
+# Which checks to run. "headings" is an alias for "structural".
+checks: [visual, links, console, headings, responsive, wp_hygiene]
+
+# Optional — authenticated WP hygiene checks (REST API + Application Password
+# over HTTPS). When absent/unreachable, wp_hygiene degrades to a skip note.
+auth:
+  user: automation
+  app_password_env: WP_APP_PASSWORD
+
+# Optional — CSS selectors masked out before visual diffing (dynamic regions).
+mask_selectors:
+  - .post-date
+  - .carousel
+
+# Optional — selector clicked once (if present) to dismiss consent banners
+# before capture. Read-only spirit: dismissal only, never form submission.
+consent_selector: ".cookie-banner .accept"
+
+# Optional — where visual baselines and reports live (defaults shown).
+baseline_dir: baseline
+report_dir: report
+
+# Adapter: "playwright" (live browser, lazily loaded) or "fake" (fixtures, used
+# by tests). With "fake", `fixture` points at a capture.json (relative to this
+# file).
+adapter: playwright
+# fixture: ./fixtures/good/capture.json

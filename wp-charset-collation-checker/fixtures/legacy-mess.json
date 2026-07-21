@@ -1,0 +1,40 @@
+{
+  "database": { "name": "wp_legacy", "charset": "latin1", "collation": "latin1_swedish_ci" },
+  "connection": {
+    "character_set_client": "utf8",
+    "character_set_connection": "latin1",
+    "character_set_results": "utf8",
+    "collation_connection": "latin1_swedish_ci"
+  },
+  "tables": [
+    {
+      "name": "wp_postmeta",
+      "charset": "utf8",
+      "collation": "utf8_general_ci",
+      "rowFormat": "Compact",
+      "columns": [
+        { "name": "meta_id", "dataType": "bigint" },
+        { "name": "post_id", "dataType": "bigint" },
+        { "name": "meta_key", "dataType": "varchar", "length": 255, "charset": "utf8", "collation": "utf8_general_ci" },
+        { "name": "meta_value", "dataType": "longtext", "charset": "utf8", "collation": "utf8_general_ci" }
+      ],
+      "indexes": [
+        { "name": "PRIMARY", "unique": true, "columns": [{ "name": "meta_id" }] },
+        { "name": "meta_key", "unique": true, "columns": [{ "name": "meta_key" }] }
+      ],
+      "foreignKeys": [{ "column": "post_id", "refTable": "wp_posts", "refColumn": "ID" }]
+    },
+    {
+      "name": "wp_posts",
+      "charset": "latin1",
+      "collation": "latin1_swedish_ci",
+      "rowFormat": "Compact",
+      "columns": [
+        { "name": "ID", "dataType": "bigint" },
+        { "name": "post_content", "dataType": "longtext", "charset": "latin1", "collation": "latin1_swedish_ci" }
+      ],
+      "indexes": [{ "name": "PRIMARY", "unique": true, "columns": [{ "name": "ID" }] }],
+      "foreignKeys": []
+    }
+  ]
+}

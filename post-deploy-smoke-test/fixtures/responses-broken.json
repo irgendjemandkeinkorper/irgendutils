@@ -1,0 +1,39 @@
+{
+  "/": {
+    "status": 500,
+    "headers": { "content-type": "text/html; charset=utf-8" },
+    "body": "<br />\n<b>Fatal error</b>: Uncaught Error: Call to undefined function acme_theme_setup() in /var/www/html/wp-content/themes/acme/functions.php:12\nStack trace:\n#0 /var/www/html/wp-settings.php(675): include()\n#1 /var/www/html/wp-config.php(96): require_once('/var/www/html/w...')\n#2 {main}\n  thrown in <b>/var/www/html/wp-content/themes/acme/functions.php</b> on line <b>12</b><br />",
+    "durationMs": 88
+  },
+  "/shop": {
+    "status": 200,
+    "headers": { "content-type": "text/html; charset=utf-8" },
+    "body": "",
+    "durationMs": 35
+  },
+  "/wp-json": {
+    "status": 200,
+    "headers": { "content-type": "text/html; charset=utf-8" },
+    "body": "<!doctype html><html><head><title>Maintenance</title></head><body><p>Briefly unavailable for scheduled maintenance. Check back in a minute. This page intentionally left long enough not to look like a white screen.</p></body></html>",
+    "durationMs": 60
+  },
+  "/old-page": {
+    "status": 301,
+    "headers": { "location": "https://acme.example.com/" },
+    "body": "",
+    "durationMs": 42
+  },
+  "/wp-login.php": {
+    "status": 200,
+    "headers": { "content-type": "text/html; charset=utf-8" },
+    "body": "<!doctype html><html><head><title>Acme — Home</title></head><body><header><h1>Acme Widgets</h1></header><main><p>Welcome to Acme, purveyors of fine widgets since 1987. This is the homepage being served on the login URL because a rewrite rule broke during the deploy.</p></main></body></html>",
+    "durationMs": 105
+  },
+  "/wp-json/wp/v2/users/me": {
+    "auth": true,
+    "status": 401,
+    "headers": { "content-type": "application/json; charset=utf-8" },
+    "body": "{\"code\":\"rest_not_logged_in\",\"message\":\"You are not currently logged in.\",\"data\":{\"status\":401}}",
+    "durationMs": 70
+  }
+}

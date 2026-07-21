@@ -1,0 +1,35 @@
+# DNS / SSL / Uptime Monitor — sample config (copy to config.yml)
+
+targets:
+  - https://acme.example.com
+  - https://beta.example.com
+# Or pull the site list from another app (e.g. the subdomain-spinup fleet).
+# Paths are resolved relative to this config file. Both lists are merged.
+# targets_from: ../wp-subdomain-spinup/sites.yml
+
+checks: [uptime, tls, dns]
+
+tls:
+  warn_days: [30, 14, 7, 1]
+  allow_self_signed: false      # set true only for non-prod fleets
+
+dns:
+  resolvers: [system, 8.8.8.8, 1.1.1.1]
+  expect:                       # optional per-host expected records
+    acme.example.com: { type: A, value: 203.0.113.10 }
+
+uptime:
+  timeout_ms: 10000
+  expect_status: 200
+  interval_hint: 5m             # informational; the scheduler owns the cadence
+
+alerting:
+  channels: [webhook]           # webhook | email (see .env.example)
+  dedupe_minutes: 60
+
+# Optional: registrar expiry via RDAP. Enabling this section adds the "domain" check.
+# domain_expiry:
+#   warn_days: [60, 30, 14]
+#   domains: [example.com]      # optional override; default is derived per target
+
+output_dir: out                 # status.html, results.json, history.jsonl land here

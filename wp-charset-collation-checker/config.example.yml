@@ -1,0 +1,29 @@
+# wp-charset-collation-checker configuration
+# Copy to config.yml and adjust. Secrets NEVER go in this file — only the
+# NAME of the env var that holds them (pass_env).
+
+db:
+  host: 127.0.0.1
+  port: 3306
+  name: sitedb
+  user: readonly
+  pass_env: DB_RO_PASSWORD      # env var holding the read-only password
+  # apply_user: admin           # optional: separate user for `convert --apply`
+  # apply_pass_env: DB_RW_PASSWORD
+  # fixture: fixtures/mixed-latin1.json   # use the offline fixture adapter instead of a live DB
+
+target_charset: utf8mb4
+target_collation: utf8mb4_unicode_ci
+
+scope: all                      # all | tables:[wp_posts,wp_postmeta]
+
+# Path to the site's wp-config.php — DB_CHARSET / DB_COLLATE are parsed and
+# cross-checked against target_charset (warns if the site itself is on utf8).
+# wp_config: /var/www/site/wp-config.php
+
+require_backup_before_apply: true
+backup:
+  path: backups/sitedb.sql      # dump file that must exist & be fresh for --apply
+  max_age_hours: 24
+
+report_dir: report

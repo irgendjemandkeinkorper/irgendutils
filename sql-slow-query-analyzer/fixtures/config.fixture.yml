@@ -1,0 +1,7 @@
+# Test fixture config — points at the bundled fixture slow log.
+source: slowlog
+slow_log_path: ./fixtures/slow.log
+top_n: 10
+min_total_time_ms: 500
+wp:
+  autoload_warn_kb: 800

@@ -1,0 +1,27 @@
+{
+  "name": "@irgendutils/wp-subdomain-spinup",
+  "version": "1.0.0",
+  "description": "Provision a new WordPress subdomain site from a template site: DNS record, site create, clone, brand tokens, URL rewrite, verify. Dry-run by default.",
+  "type": "module",
+  "bin": {
+    "spinup": "./src/cli.js",
+    "wp-subdomain-spinup": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "dev": "node src/cli.js"
+  },
+  "keywords": [
+    "wordpress",
+    "multisite",
+    "subdomain",
+    "provisioning",
+    "wp-cli",
+    "cloudflare"
+  ],
+  "author": "irgendjemandkeinkorper",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "database": { "name": "wp_clean", "charset": "utf8mb4", "collation": "utf8mb4_unicode_ci" },
+  "connection": {
+    "character_set_client": "utf8mb4",
+    "character_set_connection": "utf8mb4",
+    "character_set_results": "utf8mb4",
+    "collation_connection": "utf8mb4_unicode_ci"
+  },
+  "tables": [
+    {
+      "name": "wp_posts",
+      "charset": "utf8mb4",
+      "collation": "utf8mb4_unicode_ci",
+      "rowFormat": "Dynamic",
+      "columns": [
+        { "name": "ID", "dataType": "bigint" },
+        { "name": "post_title", "dataType": "text", "charset": "utf8mb4", "collation": "utf8mb4_unicode_ci" },
+        { "name": "post_content", "dataType": "longtext", "charset": "utf8mb4", "collation": "utf8mb4_unicode_ci" }
+      ],
+      "indexes": [{ "name": "PRIMARY", "unique": true, "columns": [{ "name": "ID" }] }],
+      "foreignKeys": []
+    },
+    {
+      "name": "wp_comments",
+      "charset": "utf8mb4",
+      "collation": "utf8mb4_unicode_ci",
+      "rowFormat": "Dynamic",
+      "columns": [
+        { "name": "comment_ID", "dataType": "bigint" },
+        { "name": "comment_content", "dataType": "text", "charset": "utf8mb4", "collation": "utf8mb4_unicode_ci" }
+      ],
+      "indexes": [{ "name": "PRIMARY", "unique": true, "columns": [{ "name": "comment_ID" }] }],
+      "foreignKeys": []
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+# Pre-launch Auditor configuration (copy to audit.config.yml)
+# All keys are optional; CLI flags override file values.
+
+# Which environment you are auditing. Affects the noindex verdict:
+#   staging    -> noindex present is CORRECT (info); missing noindex is a warning
+#   production -> noindex present is a BLOCKER
+environment: staging
+
+# Number of performance runs to aggregate (median is compared to budget).
+runs: 3
+
+# Max pages the live adapter will crawl (homepage + sitemap + same-host links).
+max_pages: 25
+
+analytics:
+  # Set true to explicitly waive the "tracking tag present" check.
+  waived: false
+
+consent:
+  # Set true if a cookie-consent banner/CMP is legally required for this site.
+  required: false
