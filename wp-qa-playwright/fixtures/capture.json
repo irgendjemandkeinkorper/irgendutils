@@ -1,0 +1,88 @@
+{
+  "_comment": "Fake-adapter fixture for offline tests. template = reference; good = matches it (should pass with ~zero findings); broken = trips every check.",
+  "pages": {
+    "https://template.example.com/": {
+      "html": "<!doctype html><html><head><title>Acme</title><link rel=\"stylesheet\" href=\"/style.css\"></head><body><header><a href=\"/\">Acme</a></header><nav role=\"navigation\"><a href=\"/\">Home</a> <a href=\"/about\">About</a></nav><main><h1>Welcome</h1><h2>Features</h2><!-- wp:paragraph --><p>Hello</p><!-- /wp:paragraph --><div class=\"wp-block-columns\"><div class=\"wp-block-column\">A</div></div><img src=\"/logo.png\" alt=\"logo\"></main><footer>Acme Inc</footer></body></html>",
+      "console": [],
+      "failedRequests": [],
+      "viewports": {
+        "360": { "scrollWidth": 360, "viewportWidth": 360, "navCollapsed": true, "tapTargets": [] },
+        "1280": { "scrollWidth": 1280, "viewportWidth": 1280, "navCollapsed": true, "tapTargets": [] }
+      },
+      "screenshots": {
+        "360": { "width": 24, "height": 24, "base": "#ffffff", "rects": [{ "x": 2, "y": 2, "w": 20, "h": 6, "color": "#3366cc" }] },
+        "1280": { "width": 48, "height": 24, "base": "#ffffff", "rects": [{ "x": 4, "y": 2, "w": 40, "h": 6, "color": "#3366cc" }] }
+      }
+    },
+    "https://good.example.com/": {
+      "html": "<!doctype html><html><head><title>Acme</title><link rel=\"stylesheet\" href=\"/style.css\"></head><body><header><a href=\"/\">Acme</a></header><nav role=\"navigation\"><a href=\"/\">Home</a> <a href=\"/about\">About</a></nav><main><h1>Welcome</h1><h2>Features</h2><!-- wp:paragraph --><p>Hello</p><!-- /wp:paragraph --><div class=\"wp-block-columns\"><div class=\"wp-block-column\">A</div></div><img src=\"/logo.png\" alt=\"logo\"></main><footer>Acme Inc</footer></body></html>",
+      "console": [],
+      "failedRequests": [],
+      "viewports": {
+        "360": { "scrollWidth": 360, "viewportWidth": 360, "navCollapsed": true, "tapTargets": [] },
+        "1280": { "scrollWidth": 1280, "viewportWidth": 1280, "navCollapsed": true, "tapTargets": [] }
+      },
+      "screenshots": {
+        "360": { "width": 24, "height": 24, "base": "#ffffff", "rects": [{ "x": 2, "y": 2, "w": 20, "h": 6, "color": "#3366cc" }] },
+        "1280": { "width": 48, "height": 24, "base": "#ffffff", "rects": [{ "x": 4, "y": 2, "w": 40, "h": 6, "color": "#3366cc" }] }
+      }
+    },
+    "https://broken.example.com/": {
+      "html": "<!doctype html><html><head><title>Broken</title><link rel=\"stylesheet\" href=\"/style.css\"></head><body><header><a href=\"/\">Acme</a></header><nav role=\"navigation\"><a href=\"/\">Home</a> <a href=\"/about\">About</a> <a href=\"/missing\">Gone</a></nav><main><h1>Oops</h1><!-- wp:paragraph --><p>Broken</p><!-- /wp:paragraph --><img src=\"http://insecure.example.com/x.png\" alt=\"x\"></main></body></html>",
+      "console": [{ "type": "error", "text": "Uncaught TypeError: cart is undefined", "viewport": 360 }],
+      "failedRequests": [{ "url": "https://broken.example.com/app.js", "reason": "net::ERR_ABORTED", "viewport": 360 }],
+      "viewports": {
+        "360": { "scrollWidth": 812, "viewportWidth": 360, "navCollapsed": false, "tapTargets": [] },
+        "1280": { "scrollWidth": 1280, "viewportWidth": 1280, "navCollapsed": false, "tapTargets": [] }
+      },
+      "screenshots": {
+        "360": { "width": 24, "height": 24, "base": "#cc0000", "rects": [] },
+        "1280": { "width": 48, "height": 24, "base": "#cc0000", "rects": [] }
+      }
+    }
+  },
+  "statuses": {
+    "https://template.example.com/": { "status": 200, "redirectChain": [] },
+    "https://template.example.com/about": { "status": 200, "redirectChain": [] },
+    "https://template.example.com/logo.png": { "status": 200, "redirectChain": [] },
+    "https://template.example.com/style.css": { "status": 200, "redirectChain": [] },
+    "https://good.example.com/": { "status": 200, "redirectChain": [] },
+    "https://good.example.com/about": { "status": 200, "redirectChain": [] },
+    "https://good.example.com/logo.png": { "status": 200, "redirectChain": [] },
+    "https://good.example.com/style.css": { "status": 200, "redirectChain": [] },
+    "https://broken.example.com/": { "status": 200, "redirectChain": [] },
+    "https://broken.example.com/about": { "status": 200, "redirectChain": [] },
+    "https://broken.example.com/style.css": { "status": 200, "redirectChain": [] },
+    "https://broken.example.com/missing": { "status": 404, "redirectChain": [] },
+    "http://insecure.example.com/x.png": { "status": 200, "redirectChain": [] }
+  },
+  "wp": {
+    "https://template.example.com/": {
+      "restAvailable": true,
+      "theme": { "name": "acme-theme", "version": "1.4.0" },
+      "plugins": [{ "name": "woocommerce", "version": "8.6.0", "active": true, "updateAvailable": false }],
+      "samplePages": [],
+      "debugOutput": false,
+      "sitemapStatus": 200,
+      "robotsStatus": 200
+    },
+    "https://good.example.com/": {
+      "restAvailable": true,
+      "theme": { "name": "acme-theme", "version": "1.4.0" },
+      "plugins": [{ "name": "woocommerce", "version": "8.6.0", "active": true, "updateAvailable": false }],
+      "samplePages": [],
+      "debugOutput": false,
+      "sitemapStatus": 200,
+      "robotsStatus": 200
+    },
+    "https://broken.example.com/": {
+      "restAvailable": true,
+      "theme": { "name": "twentytwentyone", "version": "1.0" },
+      "plugins": [],
+      "samplePages": ["Hello world!"],
+      "debugOutput": true,
+      "sitemapStatus": 404,
+      "robotsStatus": 200
+    }
+  }
+}

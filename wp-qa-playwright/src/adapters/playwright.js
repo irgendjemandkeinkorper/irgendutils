@@ -161,7 +161,8 @@ export function createPlaywrightAdapter({ timeoutMs = 30000, log = () => {} } = 
             continue;
           }
           res.body?.cancel?.().catch(() => {});
-          return { status: res.status, redirectChain: chain.slice(1).length ? chain.slice(1).concat(current !== url ? [] : []) : chain.length ? [current] : [], finalUrl: current, ...(chain.length ? { redirectChain: chain.length === 1 ? [current] : chain.slice(1).concat([current]) } : { redirectChain: [] }) };
+          // chain holds one entry per redirect hop (checkLinks: 1 => info, >=2 => warn).
+          return { status: res.status, finalUrl: current, redirectChain: chain };
         }
         return { status: 0, error: 'too many redirects', redirectChain: chain };
       } catch (err) {

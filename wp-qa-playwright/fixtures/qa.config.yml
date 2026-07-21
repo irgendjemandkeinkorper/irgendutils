@@ -1,0 +1,19 @@
+# Offline fixture config — runs the full pipeline against capture.json with the
+# fake adapter (no browser, no network). Used by tests and for a live demo:
+#   node src/cli.js run -c fixtures/qa.config.yml
+template_url: https://template.example.com/
+
+targets:
+  - https://good.example.com/
+  - https://broken.example.com/
+
+viewports: [360, 1280]
+
+thresholds:
+  pixel_diff_pct: 0.15
+  max_broken_links: 0
+
+checks: [visual, links, console, headings, responsive, wp_hygiene]
+
+adapter: fake
+fixture: ./capture.json
