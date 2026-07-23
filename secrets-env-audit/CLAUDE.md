@@ -1,96 +1,65 @@
-# CLAUDE.md — Secrets / Env Audit
+# Secrets / Env Audit
 
-## What this app does
-Two jobs, one tool: (1) **scan for leaked secrets** — API keys, passwords, tokens,
-private keys accidentally committed to a repo or left in web-reachable files; and
-(2) **catch env drift** — `.env` keys that exist in one environment but are missing
-(or differ in shape) in another, the cause of "prod is missing an API key" outages.
-Read-only; it reports, it never prints the secret values themselves.
+Node CLI (`secaudit`), two jobs one tool: (1) scan for leaked secrets — keys, passwords,
+tokens, private keys committed to a repo or left in web-reachable files; (2) catch env
+drift — `.env` keys present in one environment but missing/differently-shaped in another.
+Read-only; it reports, and never prints the secret values themselves.
 
-## Shared house rules
-- **Stack:** small **Node/TS** (or Python) CLI. Static scanning of files + git
-  history; optional live probe of a URL for exposed `.env`/config files.
-- **Never echo secret values.** Findings show the file, line, and a **masked**
-  match (`sk-****abcd`) plus the rule name — never the full secret. The report is
-  itself sensitive; treat it as such.
-- **Read-only.** No commits, no rewriting history, no deleting files — it flags and
-  advises (e.g. "rotate this key, then purge from history").
-- Low false-positive bias: combine high-signal regexes with entropy checks and an
-  allowlist for known test/example values.
+## Architecture map
 
-## Config
-```yaml
-scan:
-  roots: [~/sites/acme, ~/sites/beta]
-  include_git_history: true
-  ignore: [node_modules, vendor, .git/objects, "*.min.js"]
-  allowlist_file: .secretsallow      # known-safe/test values, hashed
-rules: [aws, gcp, stripe, github_pat, private_key, generic_high_entropy, db_url, wp_salts]
-web_probe:                            # optional: check for publicly reachable config
-  urls: [https://acme.example.com]
-  paths: [/.env, /wp-config.php.bak, /.git/config, /config.php~]
-env_drift:
-  envs:
-    - { name: local,   file: .env }
-    - { name: staging, file: .env.staging }
-    - { name: prod,    file: .env.prod }
-  compare: keys_and_shape             # keys only, or keys + value-shape (url/number/bool)
-```
+- **Stack:** Node ESM CLI (`bin: secaudit → src/cli.js`). Static scan of files + git
+  history; optional live probe of a URL for exposed config files.
+- **Parts / data flow:**
+  - **A — secret scan:** `scan.js` walks configured roots (respecting `ignore`) and git
+    history via `adapters/git.js`, matches `rules.js` patterns + entropy, filters an
+    allowlist, masks hits via `mask.js`.
+  - **B — env drift:** `drift.js` loads each env's `.env` (`envfile.js`), computes the key
+    union, reports missing keys and (optionally) value-*shape* differences — never values.
+  - **C — web exposure:** `webprobe.js` probes URLs for classic exposed paths (`/.env`,
+    `/wp-config.php.bak`, `/.git/config`) via `adapters/http.js`.
+  - `report.js` emits all three grouped by severity, masked, with remediation notes.
+- **Core modules:** `src/cli.js`, `src/scan.js`, `src/drift.js`, `src/webprobe.js`,
+  `src/rules.js` (provider + high-entropy patterns), `src/mask.js`, `src/envfile.js`,
+  `src/report.js`, `src/adapters/git.js`, `src/adapters/http.js`, `src/yaml.js`.
+- **Config:** YAML — `scan{roots,include_git_history,ignore,allowlist_file}`, `rules[]`,
+  `web_probe{urls,paths}`, `env_drift{envs[],compare}`. See `config.example.yml`, `.env.example`.
+- **Where NOT to look:** `fixtures/`, `test/`.
 
-## Workflow
-### Part A — secret scan
-1. Walk the configured roots (respecting `ignore`), and optionally the **git
-   history** (`git log -p` / a fast pack scan) — leaked secrets often live in old
-   commits even after being "removed."
-2. Match against the rule set: provider-specific patterns (AWS/Stripe/GitHub/…),
-   private-key headers, DB connection URLs, WP salts, plus a **generic
-   high-entropy** catch. Filter with the allowlist.
-3. For each hit: file, line, rule, masked preview, and whether it's in the working
-   tree, history, or both. Rank by confidence + blast radius.
+## Deeper context lives in the vault
+Curated, durable knowledge (design decisions, gotchas) lives in the monorepo Obsidian
+vault under `vault/`. Open the matching note before reading source; keep transient notes
+there, not in this file.
 
-### Part B — env drift
-4. Load each environment's `.env`; compute the **key union**. Report keys present in
-   some envs but missing in others, and (if `keys_and_shape`) keys whose value
-   *shape* differs (e.g. a URL in staging but empty in prod). Never compare or print
-   the actual secret values — only presence and shape.
+## Conventions
+- **Never echo secret values** — findings show file, line, rule name, and a **masked**
+  match (`sk-****abcd`). The report is itself sensitive — treat it as need-to-know.
+- **Read-only** — no commits, no history rewrite, no deletes; it flags and advises.
+- Low false-positive bias: high-signal regexes + entropy + allowlist for known test values.
+- The **git-history scan is the important half** — deleting a secret from the current file
+  does NOT remove it from history; remediation is rotate-then-purge, not just delete.
+- Use `.env.example` (keys, placeholder values) as the canonical key list for drift; don't
+  flag its placeholders as secrets.
 
-### Part C — web exposure (optional)
-5. Probe the configured URLs for classic exposed-file paths (`/.env`,
-   `/wp-config.php.bak`, `/.git/config`). Any 200 with config-looking content is a
-   high-severity finding.
-
-6. **Report** all three parts with severity and a remediation note per finding.
-
-## Key commands
+## Commands
 ```
 secaudit scan                    # secret scan across roots (+ git history)
 secaudit drift                   # env-file key/shape comparison
 secaudit web-probe               # check for publicly exposed config files
 secaudit run                     # all of the above
+node --test                      # tests
 ```
+Output: `report/<timestamp>.md` (+ `.json`), masked matches only, remediation notes.
+Non-zero exit on any high-severity finding (committed live secret or exposed web file).
 
-## Output
-- `report/<timestamp>.md` (+ `.json`) — grouped by severity, masked matches only,
-  remediation notes ("rotate + purge from history", "add MISSING_KEY to prod").
-- Non-zero exit if any **high-severity** finding (committed live secret or exposed
-  web file) is present — so it can gate CI.
+## Working agreement (token discipline)
+- Use this map before grepping `src/`. When I name a module, start there.
+- Prefer signatures over full bodies for supporting modules; read a whole file only when
+  editing it. Side investigations go to a subagent.
 
-## Acceptance criteria (verification step)
-- A fixture repo with a planted AWS key (in both working tree and an old commit) is
-  flagged in both locations, masked.
-- A known test/example value in the allowlist is NOT flagged (false-positive
-  control).
-- Env drift correctly reports a key present in staging but missing in prod.
-- The report contains **no** unmasked secret values (grep the output to prove it).
-- Web-probe flags a fixture serving `/.env` and passes a site that 404s it.
-
-## Gotchas
-- Deleting a secret from the current file does NOT remove it from git history — the
-  history scan is the important half; remediation is rotate-then-purge, not just
-  delete.
-- Entropy rules false-positive on hashes, minified JS, and lockfiles — scope and
-  allowlist aggressively or people ignore the report.
-- The report itself lists where secrets live — write it to a secure location, never
-  commit it, and consider it need-to-know.
-- `.env.example` should have keys but placeholder values — use it as the canonical
-  key list for drift, and don't flag its placeholders as secrets.
+## Do NOT
+- Don't edit this file mid-task (invalidates the prompt cache from here rightward).
+- **Never write an unmasked secret** anywhere, including into the report — grep the output
+  to prove it. Never commit the report.
+- Don't let entropy rules run wild on hashes/minified JS/lockfiles — scope and allowlist
+  aggressively or people ignore the report.
+- Don't reformat/mass-rename outside the task's scope.

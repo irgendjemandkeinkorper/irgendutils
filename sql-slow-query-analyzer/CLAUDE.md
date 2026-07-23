@@ -1,77 +1,66 @@
-# CLAUDE.md — SQL Slow-Query Analyzer
+# SQL Slow-Query Analyzer
 
-## What this app does
-Parse a MySQL/MariaDB **slow query log** (or `performance_schema`), group queries by
-normalized shape, rank the worst offenders by total time impact, and suggest
-indexes / rewrites. Turns a giant noisy log into a short "fix these five queries"
-list. Read-only — it never touches production data.
+Node CLI (`slowq`) that parses a MySQL/MariaDB slow query log (or `performance_schema`),
+groups queries by normalized shape, ranks the worst offenders by total time impact, and
+suggests indexes / rewrites. Read-only — never touches production data.
 
-## Shared house rules
-- **Stack:** a small **Node/TS or PHP** CLI. No heavy APM. Input is a log file or a
-  read-only DB connection; output is a report.
-- **Read-only + safe.** Connects with a read-only user; runs `EXPLAIN` (never the
-  query itself) to assess plans. Never writes, never adds the suggested indexes
-  automatically — it *recommends*, a human applies.
-- Works against standalone DBs and WP databases alike. For WP, understand the common
-  culprits (`wp_postmeta` / `wp_options` autoload / unindexed meta_key lookups).
-- Deterministic: same log → same ranked output, so runs are diffable over time.
+## Architecture map
 
-## Config
-```yaml
-source: slowlog            # slowlog | performance_schema
-slow_log_path: /var/log/mysql/slow.log
-db:                        # only needed for EXPLAIN + schema lookup
-  host: 127.0.0.1
-  name: sitedb
-  user: readonly
-  pass_env: DB_RO_PASSWORD
-top_n: 20
-min_total_time_ms: 500     # ignore trivial queries
-```
+- **Stack:** Node ESM CLI (`bin: slowq → src/cli.js`), no heavy APM. Input = log file or
+  read-only DB connection; output = a report.
+- **Data flow:** ingest (`slowlog.js` | `perfschema.js`) → `digest.js` normalize each
+  query to a shape (strip literals/IN-lists) → `aggregate.js` per-digest stats
+  (count, total/mean/p95, rows examined vs sent) → rank by total time impact →
+  `diagnose.js` runs `EXPLAIN` via the DB adapter → `report.js` emits Markdown + JSON.
+- **Core modules:**
+  - `src/cli.js` — entry / command dispatch
+  - `src/slowlog.js` — standard MySQL slow-log parser
+  - `src/perfschema.js` — `events_statements_summary_by_digest` path
+  - `src/digest.js` — query normalization / shape collapsing
+  - `src/aggregate.js` — per-digest stats + ranking
+  - `src/diagnose.js` — EXPLAIN analysis, index suggestions, `information_schema` cross-check
+  - `src/wp.js` — WordPress culprit checks (`wp_postmeta`, `wp_options` autoload bloat)
+  - `src/report.js` — report output
+  - `src/adapters/mysql.js` (read-only live) · `src/adapters/fake.js` (tests)
+  - `src/readonly.js`, `src/env.js`, `src/yaml.js` — connection safety, env, config
+- **Config:** `config.yml` — `source` (slowlog|performance_schema), `slow_log_path`,
+  `db{host,name,user,pass_env}`, `top_n`, `min_total_time_ms`. See `config.example.yml`,
+  `.env.example`.
+- **Where NOT to look:** `fixtures/` (sample logs), `src/adapters/fake.js` (test double).
 
-## Workflow
-1. **Ingest** the slow log (support the standard MySQL slow-log format and, if
-   `performance_schema`, `events_statements_summary_by_digest`).
-2. **Normalize** each query to a digest — strip literals/IN-lists so
-   `WHERE id=1` and `WHERE id=2` collapse to one shape.
-3. **Aggregate** per digest: count, total time, mean/p95 time, rows examined vs
-   rows sent (a big ratio = missing index smell).
-4. **Rank** by *total* time impact (count × mean), not just slowest single query —
-   a fast query run a million times often matters more.
-5. **Diagnose** the top N: run `EXPLAIN` (and `EXPLAIN ANALYZE` where safe), flag
-   full table scans, filesorts, temp tables, and unused/missing indexes. Cross-check
-   `information_schema` for existing indexes before suggesting new ones.
-6. **Report** each offender with: the normalized query, its stats, the EXPLAIN
-   verdict, and a concrete suggestion (candidate index DDL, or a rewrite) — clearly
-   labeled as a recommendation to review.
+## Deeper context lives in the vault
+Curated, durable knowledge (design decisions, gotchas) lives in the monorepo Obsidian
+vault under `vault/`. Open the matching note before reading source; keep transient notes
+there, not in this file.
 
-## Key commands
+## Conventions
+- **Read-only + safe:** connect with a read-only user; run `EXPLAIN` (never the query
+  itself) to assess plans. Recommend indexes; a human applies them — never auto-add.
+- **Rank by total time impact** (count × mean), not slowest single query — a fast query
+  run a million times usually matters more.
+- **Deterministic:** same log → identical ranked output, so runs are diffable over time.
+- Cross-check existing indexes before suggesting new ones; don't propose a redundant
+  index a composite already covers.
+
+## Commands
 ```
 slowq analyze                    # parse configured log, emit report
 slowq analyze --source perf_schema
 slowq explain "<query>"          # ad-hoc EXPLAIN + index suggestion
 slowq report --open
+node --test                      # tests
 ```
+Output: `report/<timestamp>.md` (+ `.json`) — ranked offenders, stats, EXPLAIN verdict,
+suggestions grouped "high confidence / worth investigating."
 
-## Output
-- `report/<timestamp>.md` (+ `.json`) — ranked offenders, stats, EXPLAIN, suggested
-  fixes. Suggestions grouped as "high confidence / worth investigating."
+## Working agreement (token discipline)
+- Use this map before grepping `src/`. When I name a module, start there.
+- Prefer signatures over full bodies for supporting modules; read a whole file only when
+  editing it. Side investigations go to a subagent.
 
-## Acceptance criteria (verification step)
-- On a fixture log with a known unindexed query, the tool ranks it and suggests the
-  correct index.
-- Digest normalization collapses parameter-only variants into one group (assert
-  count).
-- No write statement is ever issued (assert the DB user has no write grant, or run
-  against a read replica).
-- Re-running on the same log yields identical rankings.
-
-## Gotchas
-- `EXPLAIN` on a query with bound literals can differ from the real plan — note that
-  suggestions are advisory.
-- A suggested index isn't free: flag write-heavy tables where a new index costs
-  insert performance.
-- WP `autoload` bloat in `wp_options` won't show in the slow log but is a frequent
-  real cause of slowness — add a specific check for large autoloaded option totals.
-- Don't suggest a redundant index that a composite already covers — check existing
-  indexes first.
+## Do NOT
+- Don't edit this file mid-task (invalidates the prompt cache from here rightward).
+- **Never issue a write statement** — verify the DB user has no write grant / use a replica.
+- Don't present suggestions as certainties: EXPLAIN with bound literals can differ from
+  the real plan; a new index costs insert performance on write-heavy tables — flag it.
+- Don't reformat/mass-rename outside the task's scope.

@@ -1,78 +1,67 @@
-# CLAUDE.md — Post-Deploy Smoke Test
+# Post-Deploy Smoke Test
 
-## What this app does
-Right after a deploy, hit a small list of **critical URLs** and assert each returns
-the right status code and contains a known "proof of life" string. Catches the
-"deploy succeeded but the homepage is a white screen / 500 / missing content" class
-of failure in seconds, and exits non-zero so it can gate or trigger a rollback.
-Deliberately tiny and fast — this is a gate, not a full QA suite.
+Node CLI (`smoke`) that, right after a deploy, hits a small list of critical URLs and
+asserts each returns the right status code and a known "proof of life" string. Catches
+the "deploy succeeded but the homepage is a white screen / 500" class of failure in
+seconds and exits non-zero so it can gate or trigger a rollback. Deliberately tiny and
+fast — a gate, not a full QA suite.
 
-## Shared house rules
-- **Stack:** minimal — plain HTTP checks (Node/TS or even curl+jq) for speed;
-  optional **Playwright** only for the few flows that need JS/login. Reuses the
-  QA app's helpers where useful but stays lightweight enough to run in a deploy
-  pipeline in under a minute.
-- **Read-only, idempotent, fast.** No side effects, safe to run repeatedly. Hard
-  timeout per check so a hung URL can't stall the pipeline.
-- **REST-first for authed checks** — use an Application Password to smoke-test a
-  logged-in endpoint rather than scripting a full browser login when a simple
-  authenticated request suffices.
-- Config is per-site and lives with the site, so each project declares its own
-  critical paths.
+## Architecture map
 
-## Config
-`smoke.yml`:
-```yaml
-base_url: https://acme.example.com
-timeout_ms: 8000
-checks:
-  - { path: /,                 status: 200, contains: "Acme" }
-  - { path: /shop,             status: 200, contains: "Add to cart" }
-  - { path: /wp-json,          status: 200, json: true }
-  - { path: /old-page,         status: 301, redirects_to: /new-page }
-  - { path: /wp-login.php,     status: 200, contains: "Log In" }
-authed:
-  - { path: /wp-json/wp/v2/users/me, user: automation, app_password_env: WP_APP_PASSWORD, status: 200 }
-fail_fast: false               # run all checks, report all failures
-```
+- **Stack:** Node ESM CLI (`bin: smoke → src/cli.js`). Plain HTTP checks for speed;
+  optional Playwright only for the few flows needing JS/login.
+- **Data flow:** `cli.js run` → load `smoke.yml` (`yaml.js`) → `runner.js` executes each
+  check via an adapter (`adapters/http.js` default, `adapters/playwright.js` for authed
+  JS flows) → `evaluate.js` asserts status/content/JSON/TLS → `report.js` prints a table
+  + `results.json`, sets exit code.
+- **Core modules:**
+  - `src/cli.js` — entry / command dispatch
+  - `src/runner.js` — orchestrates checks, per-check hard timeout
+  - `src/evaluate.js` — status, content-contains, JSON, redirect, fatal-error, TLS assertions
+  - `src/adapters/http.js` — plain HTTP probe · `src/adapters/playwright.js` — authed/JS flows
+  - `src/report.js` — console table + `results.json` + exit code
+  - `src/yaml.js` — config parse
+- **Config:** `smoke.yml` — `base_url`, `timeout_ms`, `checks[]`
+  (`{path,status,contains,json,redirects_to}`), `authed[]`
+  (`{path,user,app_password_env,status}` via WP Application Password), `fail_fast`.
+  See `smoke.example.yml`, `.env.example`.
+- **Where NOT to look:** `fixtures/`, `test/`, `README.md`.
+
+## Deeper context lives in the vault
+Curated, durable knowledge (design decisions, gotchas) lives in the monorepo Obsidian
+vault under `vault/`. Open the matching note before reading source; keep transient notes
+there, not in this file.
 
 ## Checks per URL
-- **Status code** matches expected (200, or an expected 301/302 with the right
-  `Location`).
-- **Content assertion** — the response body contains the expected string (proves the
-  page actually rendered, not just returned 200 with an error page).
-- **No mixed content / no fatal-error markers** — flag `Fatal error`,
-  `There has been a critical error`, stack traces, or a suspiciously tiny body.
-- **JSON endpoints** parse as valid JSON when `json: true`.
-- **TLS valid** — cert not expired, hostname matches (quick check; deep cert
-  monitoring lives in the DNS/SSL monitor app).
-- **Response time** under a soft budget (warn, don't fail, unless configured).
+Status code (incl. expected 301/302 + `Location`) · content-contains (proves it rendered)
+· no fatal-error markers (`Fatal error`, `There has been a critical error`, stack traces,
+tiny body) · valid JSON when `json:true` · TLS valid (quick) · response time vs soft budget.
 
-## Key commands
+## Conventions
+- **Read-only, idempotent, fast** — no side effects, safe to run repeatedly. Hard timeout
+  per check so a hung URL can't stall the pipeline. Keep the critical-path list SHORT.
+- **REST-first for authed checks** — use an Application Password rather than scripting a
+  full browser login when a simple authenticated request suffices.
+- Config is per-site and lives with the site.
+- Test the deploy target/origin directly, not just the CDN (a cached good copy masks a
+  broken origin). Assert on stable proof strings, never volatile content (prices/timestamps).
+
+## Commands
 ```
-smoke run                        # run all checks against base_url
-smoke run --url https://staging.acme.example.com   # override target (test staging first)
-smoke run --fail-fast            # stop at first failure
+smoke run                                              # all checks vs base_url
+smoke run --url https://staging.acme.example.com       # override target
+smoke run --fail-fast                                  # stop at first failure
+node --test                                            # tests
 ```
+Exit code: 0 = all passed, non-zero = ≥1 failure → wire to rollback/alert.
 
-## Output
-- Compact console table: each check ✓/✗ with status, timing, and the failure reason.
-- `results.json` for the pipeline.
-- **Exit code** 0 = all passed, non-zero = at least one failure → wire to
-  rollback/alert.
+## Working agreement (token discipline)
+- Use this map before grepping `src/`. When I name a module, start there.
+- Prefer signatures over full bodies for supporting modules; read a whole file only when
+  editing it. Side investigations go to a subagent.
 
-## Acceptance criteria (verification step)
-- Against a healthy site, all checks pass and exit code is 0.
-- Pointed at a fixture returning a 500 or a white screen, the matching check FAILS
-  with a clear reason and non-zero exit.
-- A content-assertion mismatch (200 but wrong body) is caught — proves it's not just
-  a status-code check.
-- Runs to completion inside the configured timeout even when a URL hangs.
-
-## Gotchas
-- Test the deploy target directly (origin), not just the CDN — a cached good copy
-  can mask a broken origin. Add a cache-buster or `Host` override where needed.
-- CDNs/WAFs may rate-limit or challenge rapid automated hits — allowlist the runner.
-- Don't assert on volatile content (prices, timestamps); pick stable proof strings.
-- Keep the critical-path list SHORT — this must stay fast enough to run on every
-  deploy; deep coverage belongs in the QA app.
+## Do NOT
+- Don't edit this file mid-task (invalidates the prompt cache from here rightward).
+- Don't let this grow into a full QA suite — deep coverage belongs in the QA app; this
+  must stay fast enough to run on every deploy.
+- Don't reformat/mass-rename outside the task's scope.

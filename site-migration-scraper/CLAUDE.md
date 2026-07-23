@@ -1,24 +1,22 @@
-# CLAUDE.md — Site Migration Scraper  (brainstorm pick #1)
+# CLAUDE.md — Site Migration Scraper
 
-## Why this one
-It sits upstream of two apps you already want: it turns an existing/legacy site
-into **clean, structured content** that feeds the **HTML→Gutenberg** converter and
-seeds an **Obsidian vault** with the site inventory. It's the "get the old content
-out cleanly" step that every WordPress rebuild needs.
+Crawl a source site (old CMS, static HTML, a page you're rebuilding) and extract each
+page's **main content** as clean HTML/Markdown + a metadata manifest. Strips
+nav/ads/boilerplate so what's left is body content ready for conversion. Sits upstream
+of **html-to-gutenberg** (per-page `content.html` is valid `h2g convert` input) and
+seeds **obsidian-vault-forge**'s site inventory (`manifest.json`).
 
-## What it does
-Crawl a source site (old CMS, static HTML, or a competitor page you're rebuilding)
-and extract each page's **main content** as clean HTML/Markdown + a metadata
-manifest (title, slug, meta description, images, internal link graph). Deliberately
-strips nav/ads/boilerplate so what's left is body content ready for conversion.
+## Architecture map
+- **Stack:** Node/TypeScript + **Playwright** (handles JS-rendered pages a plain fetch
+  would miss). Output is plain files (HTML/MD/JSON) — no DB. Planned CLI: `scrape`.
+- **Status:** spec + scaffold stage — `src/`, `src/adapters/`, `test/` and
+  `fixtures/site/` (about, blog) / `fixtures/broken/` dirs exist but are empty.
+  Implement to the workflow below; a good-vs-broken fixture pair proves extraction.
+- **Where NOT to look:** `node_modules/` (once added), generated `out/<slug>/`.
 
-## Shared house rules
-- **Stack:** **Node/TypeScript** + **Playwright** (handles JS-rendered pages that a
-  plain fetch would miss). Output is plain files (HTML/MD/JSON) — no DB.
-- **Read-only + polite.** Respect `robots.txt`, rate-limit, set a real user agent,
-  and cap crawl depth/pages via config. This never logs into or mutates the source.
-- Deterministic output filenames keyed to URL slug so re-runs are diffable.
-- Only crawl domains explicitly listed in config — never follow off-site links.
+## Deeper context lives in the vault
+Durable knowledge (readability-heuristic tuning, per-site selectors) goes in the
+Obsidian vault under `vault/`. Open the matching note before reading source.
 
 ## Config
 ```yaml
@@ -27,24 +25,21 @@ allow_domains: [old.example.com]
 max_pages: 200
 max_depth: 4
 rate_limit_ms: 800
-content_selector: "main, article, .entry-content"   # main-content hint
+content_selector: "main, article, .entry-content"
 strip_selectors: ["nav", "footer", ".ads", ".cookie"]
 output: ./out/<slug>/
 formats: [html, markdown, json]
 ```
 
-## Workflow
-1. Crawl from `start_urls`, staying within `allow_domains`, honoring depth/page
-   caps and rate limit.
-2. For each page: render, isolate main content (readability heuristic + the
-   `content_selector` hint), strip `strip_selectors`, and normalize (absolute URLs,
-   deduped whitespace).
-3. Emit per page: `content.html`, `content.md`, and `meta.json` (title, slug, meta
-   desc, canonical, h1, image list with alt text, outbound internal links).
-4. Emit a site-level `manifest.json`: full URL list, the internal link graph, an
-   image inventory, and a redirect map (old path → proposed new path).
-5. **Handoff:** the per-page `content.html` is valid input for `h2g convert`; the
-   `manifest.json` drops straight into `obsidian-vault-forge`'s Site Inventory.
+## Workflow (to implement)
+1. Crawl from `start_urls`, staying within `allow_domains`, honoring depth/page caps + rate limit.
+2. Per page: render, isolate main content (readability heuristic + `content_selector`
+   hint), strip `strip_selectors`, normalize (absolute URLs, deduped whitespace).
+3. Emit per page: `content.html`, `content.md`, `meta.json` (title, slug, meta desc,
+   canonical, h1, image list with alt, outbound internal links).
+4. Emit site-level `manifest.json`: URL list, internal link graph, image inventory,
+   redirect map (old path → proposed new path).
+5. **Handoff:** `content.html` → `h2g convert`; `manifest.json` → obsidian-vault-forge.
 
 ## Key commands
 ```
@@ -53,17 +48,20 @@ scrape run <url> --single       # one page only
 scrape manifest --graph         # emit link graph + redirect map
 ```
 
-## Acceptance criteria
-- Main-content extraction on a fixture page keeps the body and drops nav/footer
-  (assert known boilerplate strings are absent, known body strings present).
-- Every page in `manifest.json` has a reachable output file; counts match.
-- Redirect map has no duplicate source paths and no self-redirects.
-- Re-running produces identical output for unchanged pages.
+## Conventions / house rules
+- **Read-only + polite:** respect `robots.txt`, rate-limit, real user agent, cap
+  depth/pages. Never log into or mutate the source. Only crawl domains in
+  `allow_domains` — never follow off-site links.
+- Deterministic output filenames keyed to URL slug so re-runs are diffable.
+- Verify: extraction keeps body + drops nav/footer (assert boilerplate strings absent,
+  body strings present); every manifest page has a reachable output file (counts match);
+  redirect map has no duplicate sources / self-redirects; re-runs are identical.
 
 ## Gotchas
-- Readability heuristics fail on unusual layouts — always allow the per-site
-  `content_selector` override.
-- Infinite crawls via calendars/faceted params — enforce max_pages AND a
-  query-param denylist.
-- Don't scrape sites you don't have rights to rebuild; keep this pointed at the
-  client's own properties.
+- Readability fails on unusual layouts — always allow the per-site `content_selector` override.
+- Infinite crawls via calendars/faceted params — enforce `max_pages` AND a query-param denylist.
+- Don't scrape sites you don't have rights to rebuild; keep it on the client's own properties.
+
+## Do NOT
+- Don't edit this file mid-task (breaks the prompt cache). Don't crawl off-listed
+  domains or ignore rate limits. Don't reformat outside task scope.

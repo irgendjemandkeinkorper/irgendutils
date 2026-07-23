@@ -1,95 +1,65 @@
 # CLAUDE.md — DNS / SSL / Uptime Monitor
 
-## What this app does
-Watch every site/subdomain you manage for the three things that silently break and
-embarrass you: an **expiring TLS cert**, a **drifted/missing DNS record**, and
-**downtime**. Runs on a schedule, alerts *before* expiry, and renders a simple
-status page. Designed to be the recurring-task backstop across the whole fleet.
+Watch every site/subdomain in the fleet for the three things that silently break:
+an **expiring TLS cert**, **drifted/missing DNS**, and **downtime**. Runs on a
+schedule, alerts *before* expiry, renders a simple status page. Non-zero exit on any
+breach so a scheduled task surfaces it.
 
-## Shared house rules
-- **Stack:** small **Node/TS** (or PHP) CLI. Read-only network checks — DNS
-  lookups, a TLS handshake, and an HTTP request per target. No server access needed.
-- **Built to run unattended on a schedule.** Idempotent, stateless between runs
-  except for a small history file for trend/alert-dedup. Exit non-zero on any
-  breach so a scheduled task surfaces it.
-- **Alert before it breaks, not after.** Cert/domain expiry warns at configurable
-  lead times (e.g. 30/14/7/1 days). Downtime alerts immediately but de-dupes so one
-  outage isn't 100 pings.
-- Pairs with the **subdomain-spinup** fleet — ideally reads the same site list so a
-  newly spun-up subdomain is monitored automatically.
+## Architecture map
+- **Stack:** Node ESM CLI (`node >=18`), zero-dep read-only network checks. Entry:
+  `src/cli.js` (bin `monitor`; `npm start` → `monitor run`).
+- **Checks:** `src/checks/uptime.js` (HTTP health + redirects), `tls.js` (handshake,
+  days-to-expiry, hostname/chain), `dns.js` (A/AAAA/CNAME/MX/TXT vs expected),
+  `domain.js` (RDAP/WHOIS registration expiry).
+- **Support:** `src/config.js` + `src/yaml.js` (load `config.example.yml`),
+  `src/alerts.js` (channels + dedupe), `src/history.js` (append-only trend/dedup),
+  `src/util.js`.
+- **Data flow:** load config → run selected checks per target → alerts on new
+  breaches → write `status.html` + `results.json` + `history.jsonl`.
+- **Where NOT to look:** `node_modules/`, generated `status.html`/`results.json`/`history.jsonl`.
 
-## Config
+## Deeper context lives in the vault
+Durable cross-session knowledge (resolver quirks, alert-tuning decisions) goes in the
+Obsidian vault under `vault/`. Open the matching note before reading source.
+
+## Config (`config.example.yml`)
 ```yaml
-targets:
-  - https://acme.example.com
-  - https://beta.example.com
-# or: targets_from: ../wp-subdomain-spinup/sites.yml
+targets: [https://acme.example.com]
+# or: targets_from: ../wp-subdomain-spinup/sites.yml   # auto-monitor new spinups
 checks: [uptime, tls, dns]
-tls:
-  warn_days: [30, 14, 7, 1]
-dns:
-  expect:                       # optional per-host expected records
-    acme.example.com: { type: A, value: 203.0.113.10 }
-uptime:
-  timeout_ms: 10000
-  expect_status: 200
-  interval_hint: 5m             # actual schedule set by the scheduled task
-alerting:
-  channels: [email, webhook]    # wire to your notifier
-  dedupe_minutes: 60
-domain_expiry:
-  warn_days: [60, 30, 14]       # WHOIS/RDAP registration expiry (optional)
+tls: { warn_days: [30, 14, 7, 1] }
+dns: { expect: { acme.example.com: { type: A, value: 203.0.113.10 } } }
+uptime: { timeout_ms: 10000, expect_status: 200 }
+alerting: { channels: [email, webhook], dedupe_minutes: 60 }
+domain_expiry: { warn_days: [60, 30, 14] }   # optional WHOIS/RDAP
 ```
-
-## Checks
-1. **Uptime / health** — HTTP GET each target; assert expected status within
-   timeout. Record response time. Follow the http→https redirect and note if a site
-   only serves http.
-2. **TLS** — open a TLS connection, read the cert: days-to-expiry, hostname match,
-   full chain valid, not self-signed on prod, not using a weak/expired protocol.
-   Warn at each `warn_days` threshold.
-3. **DNS** — resolve A/AAAA/CNAME (and MX/TXT if configured); compare against
-   expected values. Flag drift, NXDOMAIN, or a record pointing at an old/dead IP.
-   Note propagation differences across a couple of public resolvers.
-4. **Domain registration expiry** (optional) — RDAP/WHOIS lookup for the registered
-   domain's expiry, warned well ahead (losing the domain is worse than losing a
-   cert).
 
 ## Key commands
 ```
 monitor run                      # one pass over all targets (what the schedule calls)
 monitor run --checks tls,dns
-monitor status                   # render/refresh the status page from last results
-monitor history <host>           # uptime %, past incidents, cert history
+monitor status                   # render status page from last results
+monitor history <host>           # uptime %, incidents, cert history
+npm test                         # node --test
 ```
 
-## Output
-- `status.html` — one-glance fleet status: green/amber/red per site with
-  days-to-cert-expiry and last-checked time. (Good candidate to persist as an
-  artifact / status page.)
-- `results.json` + append-only `history.jsonl` — for trends and alert de-dup.
-- Alerts via configured channels on new breaches; non-zero exit when any target is
-  red.
-
-## Scheduling
-Intended to be driven by a **recurring scheduled task** (e.g. every 5–15 min for
-uptime, daily for TLS/DNS/domain). The app itself does one pass per invocation; the
-scheduler owns the cadence. Keep a longer cadence for the expensive WHOIS/RDAP
-checks.
-
-## Acceptance criteria (verification step)
-- A healthy target reports green on all checks.
-- A fixture with a cert expiring in 5 days triggers the 7-day and 1-day warnings but
-  not the 30-day.
-- A host whose DNS doesn't match `expect` is flagged as drift.
-- A down/timeout fixture produces a downtime alert and non-zero exit, and a repeated
-  run within `dedupe_minutes` does NOT re-alert.
+## Conventions / house rules
+- Built to run **unattended on a schedule**; the app does one pass per invocation,
+  the scheduler owns cadence (5–15 min uptime, daily TLS/DNS/domain).
+- Stateless between runs except the small history file (trend + alert dedup).
+- **Alert before it breaks:** warn at each `warn_days` threshold; dedupe downtime so
+  one outage isn't 100 pings. Secrets from env (`.env`), never committed.
+- Verify: healthy target is green; a cert-in-5-days fixture fires 7/1-day not 30-day;
+  DNS not matching `expect` flags drift; down fixture alerts + exits non-zero and does
+  NOT re-alert within `dedupe_minutes`.
 
 ## Gotchas
-- DNS caching/TTL means a change looks "not propagated" briefly — query multiple
-  resolvers and treat short-lived disagreement as info, not alarm.
-- Cert chains: a leaf cert can be valid while an intermediate is missing — validate
-  the full chain, not just the leaf's dates.
-- Proxied (Cloudflare) records return the proxy IP, not the origin — decide whether
-  you're monitoring edge or origin and be explicit.
-- Alert fatigue kills monitors — dedupe and escalate rather than firing every run.
+- DNS TTL/caching makes a change look "not propagated" briefly — query multiple
+  resolvers; short-lived disagreement is info, not alarm.
+- Validate the **full chain**, not just the leaf's dates (a missing intermediate).
+- Proxied (Cloudflare) records return the proxy IP — decide edge vs origin explicitly.
+- Alert fatigue kills monitors — dedupe and escalate, don't fire every run.
+
+## Do NOT
+- Don't edit this file mid-task (breaks the prompt cache). Don't mutate any target —
+  every check is read-only. Don't reformat/mass-rename outside the task's scope.

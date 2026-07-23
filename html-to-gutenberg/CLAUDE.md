@@ -1,95 +1,62 @@
 # CLAUDE.md — HTML → Gutenberg Blocks (single page)
 
-## What this app does
-Take a chunk of static HTML (a designed landing page, an exported page, a pasted
-snippet) and convert it into **valid Gutenberg block markup** that can be pasted
-into the WordPress block editor or pushed via REST — for a **single page** at a
-time. Then render it in a real editor via Playwright to confirm it parses with no
-"block recovery" errors and looks right.
+Convert a chunk of static HTML into **valid Gutenberg block markup** (paste into the
+block editor or push via REST) — one page at a time — then render it in a real editor
+via Playwright to confirm it parses with no "block recovery" errors.
 
-## Shared house rules
-- **Stack:** The converter core is best in **Node/TypeScript** (HTML parsing +
-  block serialization). Pushing the result into WP uses **WP-CLI** (`wp post
-  create`) or the **REST API** — support both. Playwright (TS) does the render
-  verification.
-- Output must be **canonical Gutenberg block grammar**: the `<!-- wp:block { ...
-  attrs } -->` comment delimiters with correct attribute JSON and the expected
-  inner HTML. Prefer **core blocks**; only emit `core/html` as a last resort and
-  flag every time you do.
-- **Lossless intent, not lossless markup.** Map semantic HTML to the right block,
-  don't just wrap raw HTML. `<h2>`→`core/heading`, `<ul>`→`core/list`,
-  `<figure><img>`→`core/image`, `<blockquote>`→`core/quote`, columns/grids→
-  `core/columns`, etc.
-- Single page only — do not build a crawler here. (Bulk/site migration is a
-  separate app; this one is deliberately one-shot and high-fidelity.)
-- Verify by rendering, never by eyeballing the string.
+## Architecture map
+- **Stack:** Node ESM CLI (`node >=18`). Entry: `src/cli.js` (bin `h2g`).
+- **Pipeline:** `src/htmlparser.js` (parse) → `src/normalize.js` (strip scripts,
+  resolve URLs, whitespace) → `src/convert.js` (walk DOM → blocks per mapping table) →
+  `src/grammar.js` (serialize canonical `<!-- wp:… -->` block markup) →
+  `src/push.js` (WP-CLI `wp post create` / REST `/wp/v2/pages`) →
+  `src/verify.js` (Playwright render check).
+- **Support:** `src/media.js` (import to media library / link external),
+  `src/report.js` (block counts + fallbacks), `src/config.js` (`h2g.config.example.yml`).
+- **Where NOT to look:** `node_modules/`, generated `blocks.html`/reports.
 
-## Mapping table (implement + keep extensible)
-| HTML | Block |
-|------|-------|
-| `h1–h6` | `core/heading` (with `level`) |
-| `p` | `core/paragraph` |
-| `ul` / `ol` | `core/list` (+ `core/list-item`) |
-| `img`, `figure>img` | `core/image` (+ caption) |
-| `a.button`, `.btn` | `core/button(s)` |
-| `blockquote` | `core/quote` |
-| `pre>code` | `core/code` |
-| `hr` | `core/separator` |
-| `table` | `core/table` |
-| section with N children columns | `core/columns` + `core/column` |
-| `<video>`/`<iframe>` (YouTube etc.) | `core/embed` or `core/video` |
-| unknown / inline-styled soup | `core/html` (LAST RESORT — log it) |
+## Deeper context lives in the vault
+Durable knowledge (block-attr edge cases, mapping decisions) goes in the Obsidian
+vault under `vault/`. Open the matching note before reading source.
 
-## Workflow
-1. **Parse + normalize** the input HTML (strip tracking scripts, normalize
-   whitespace, resolve relative asset URLs to absolute or to a configured media
-   base).
-2. **Media handling:** for each `<img>`, either (a) upload to the WP media library
-   (WP-CLI `wp media import` / REST `/wp/v2/media`) and reference the new
-   attachment ID, or (b) keep the external URL — controlled by `--media import|link`.
-   `core/image` should carry the resolved `id`/`url`.
-3. **Walk the DOM** and emit blocks per the mapping table. Preserve heading order,
-   alt text, captions, link targets.
-4. **Serialize** to block markup and (optionally) create the page:
-   `wp post create --post_type=page --post_status=draft` with the block content, or
-   REST `POST /wp/v2/pages`.
-5. **Render-verify with Playwright** (below).
-6. Emit a **conversion report**: block counts, any `core/html` fallbacks, any
-   dropped/unmapped nodes.
+## Mapping table (in `src/convert.js` — keep extensible)
+`h1–h6`→`core/heading` (level) · `p`→`core/paragraph` · `ul`/`ol`→`core/list`(+item) ·
+`img`/`figure>img`→`core/image`(+caption) · `a.button`/`.btn`→`core/button(s)` ·
+`blockquote`→`core/quote` · `pre>code`→`core/code` · `hr`→`core/separator` ·
+`table`→`core/table` · column sections→`core/columns`+`core/column` ·
+`video`/`iframe`→`core/embed`|`core/video` · unmappable soup→`core/html` (LAST RESORT, log it).
 
 ## Key commands
 ```
-h2g convert input.html -o blocks.html        # just the block markup
-h2g convert input.html --push --status draft  # create the WP page
-h2g verify <page-url-or-id>                   # render check only
-h2g convert input.html --media import         # pull images into WP
+h2g convert input.html -o blocks.html         # just the block markup
+h2g convert input.html --push --status draft   # create the WP page
+h2g convert input.html --media import          # pull images into WP (else link)
+h2g verify <page-url-or-id>                    # render check only
+npm test                                       # node --test
 ```
 
-## Render verification (the important part)
-Open the created draft in the block editor (or the front-end preview) with
-Playwright and assert:
-- **No block-recovery / "This block contains unexpected or invalid content"
-  warnings** anywhere. This is the primary pass/fail signal.
-- The block count and types in the editor match what the converter claims it wrote.
-- Front-end render has no console errors, images load (no 404s), headings preserve
-  their order/levels.
-- Optional: pixel-diff the rendered front end against a screenshot of the original
-  HTML to catch layout drift (reuse the QA app's diff util).
-
-## Acceptance criteria
-- A representative fixture page round-trips with **zero** invalid-block warnings and
-  **zero** `core/html` fallbacks (or fallbacks only where truly unavoidable, each
-  logged with a reason).
-- Re-converting the same input is deterministic (identical output).
-- All images resolve; alt text and captions survive.
+## Conventions / house rules
+- Output must be **canonical Gutenberg block grammar** — correct attr JSON + expected
+  inner HTML. Prefer core blocks; emit `core/html` only as a last resort and flag it.
+- **Lossless intent, not lossless markup:** map semantic HTML to the right block, don't
+  wrap raw HTML.
+- **Single page only** — no crawler here (bulk migration is site-migration-scraper).
+- **Verify by rendering, never by eyeballing the string.** Playwright asserts: zero
+  block-recovery / "invalid content" warnings (primary pass/fail); block counts match
+  the report; front end no console errors, images load, heading order preserved.
+- Acceptance: a fixture round-trips with zero invalid-block warnings and zero
+  `core/html` fallbacks (or each logged with a reason); re-conversion is deterministic;
+  all images resolve, alt/captions survive.
 
 ## Gotchas
-- Block attribute JSON must be valid and minimal — extra/misnamed attrs trigger
-  recovery mode. When unsure of an attr, omit it and let defaults apply.
-- Inline styles don't map cleanly to core blocks; decide per-project whether to
-  drop them, translate to block supports (color/spacing), or fall back to
-  `core/html`.
-- The editor needs auth to open — use an Application Password or a logged-in
-  Playwright storage state; never commit it.
-- Nested columns/grids are the most error-prone mapping — cover them explicitly in
-  fixtures.
+- Block attr JSON must be valid + minimal — extra/misnamed attrs trigger recovery mode;
+  when unsure of an attr, omit it and let defaults apply.
+- Inline styles don't map cleanly — decide per-project: drop, translate to block
+  supports, or `core/html`.
+- The editor needs auth — Application Password or a logged-in Playwright storage state;
+  never commit it.
+- Nested columns/grids are the most error-prone mapping — cover them in fixtures.
+
+## Do NOT
+- Don't edit this file mid-task (breaks the prompt cache). Don't emit `core/html`
+  silently. Don't build a crawler. Don't reformat outside task scope.

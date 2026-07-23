@@ -1,0 +1,31 @@
+{
+  "name": "@irgendutils/image-convert",
+  "version": "1.0.0",
+  "description": "Lightweight batch converter: turn JPG/PNG/TIFF/etc into WebP and/or AVIF, with resize, quality, verify, and a dry-run-by-default safety net.",
+  "bin": {
+    "image-convert": "./src/cli.js",
+    "imgconv": "./src/cli.js"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "node src/cli.js",
+    "test": "node test/smoke.js",
+    "lint": "echo 'Add linting here'"
+  },
+  "keywords": [
+    "webp",
+    "avif",
+    "image",
+    "convert",
+    "sharp",
+    "optimize"
+  ],
+  "author": "irgendjemandkeinkorper",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "sharp": "^0.34.2"
+  }
+}
