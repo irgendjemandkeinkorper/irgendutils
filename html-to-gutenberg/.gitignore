@@ -4,3 +4,4 @@ out/
 report/
 *.log
 blocks.html
+h2g.config.yml
