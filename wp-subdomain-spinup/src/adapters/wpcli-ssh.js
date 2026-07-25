@@ -75,6 +75,14 @@ export function createWpCliAdapter(config, { log = () => {} } = {}) {
       return siteList();
     },
 
+    // Theme activation is the one post-create step with no REST equivalent.
+    // `theme enable --activate` both allows the theme on the site and switches
+    // to it, so it works whether or not the theme is network-enabled.
+    async activateTheme({ url, theme }) {
+      await run(['theme', 'enable', theme, `--url=${new URL(url).hostname}`, '--activate']);
+      log('wpcli.themeActivate', { theme, url });
+    },
+
     // Serialization-safe rewrite — WP-CLI handles serialized PHP data, which
     // is exactly why we prefer it over any raw-SQL approach.
     async searchReplace({ url, from, to, dryRun }) {

@@ -15,14 +15,16 @@ import { cmdCreate, cmdTeardown, cmdList, cmdVerify, EXIT } from './engine.js';
 const USAGE = `spinup — WordPress subdomain spinup from a template site
 
 Usage:
-  spinup create <sub> [--brand brand.json] [--apply] [--force]
+  spinup create <sub> [--brand brand.json] [--template <slug>] [--apply] [--force]
   spinup teardown <sub> [--apply]
   spinup list
-  spinup verify <sub>
+  spinup verify <sub> [--template <slug>]
 
 Options:
   --config <path>   Config file (default: config.yml)
   --env <path>      .env file to load (default: .env)
+  --template <slug> Template site to clone/verify against (overrides the
+                    config's template_slug for this run)
   --brand <path>    Brand tokens JSON (title, tagline, logo, primary_color)
   --apply           Actually mutate. Without it, create/teardown only print a plan.
   --force           Re-run provisioning steps even if the site already exists.
@@ -85,6 +87,7 @@ export async function main(argv = process.argv.slice(2)) {
       options: {
         config: { type: 'string', default: 'config.yml' },
         env: { type: 'string', default: '.env' },
+        template: { type: 'string' },
         brand: { type: 'string' },
         apply: { type: 'boolean', default: false },
         force: { type: 'boolean', default: false },
@@ -117,6 +120,7 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     loadEnvFile(args.values.env);
     const config = loadConfig(args.values.config);
+    if (args.values.template) config.template_slug = args.values.template;
     const { log } = createRunLog(process.env.SPINUP_LOG_DIR || 'runs');
     log('start', { command, sub: sub ?? null, apply: args.values.apply, force: args.values.force });
 

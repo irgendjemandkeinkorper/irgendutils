@@ -97,6 +97,7 @@ export async function cmdCreate(ctx, sub, opts = {}) {
       ? `provision: wp site create --slug=${sub} --url=${url} (WP-CLI over SSH, or manual command if SSH is unreachable)`
       : `provision: standalone — assume WP core already installed at ${url}, check it responds`,
     `clone: copy theme, plugin set, settings, menus and starter pages from ${config.template_slug} (${templateUrl})`,
+    'theme: activate the template theme on the new site (WP-CLI — REST has no activation endpoint)',
     `rewrite: search-replace ${templateUrl} -> ${url} (dry-run count first, then apply, then re-check count == 0)`,
     opts.brand
       ? `brand: apply brand tokens (${Object.keys(opts.brand).join(', ')})`
@@ -193,6 +194,32 @@ export async function cmdCreate(ctx, sub, opts = {}) {
   messages.push(
     `clone: theme=${cloned.theme} plugins=[${cloned.plugins.join(', ')}] pages=${cloned.pages}`
   );
+
+  // --- 4b. Activate the template's theme. WP's REST API has no theme
+  // activation endpoint, so a freshly created site sits on the network
+  // default; WP-CLI is the only automated path. ---
+  if (cloned.theme) {
+    const active = await adapters.rest.activeTheme(url);
+    if (active === cloned.theme) {
+      messages.push(`theme: ${cloned.theme} already active`);
+    } else if (await sshAvailable(ctx)) {
+      try {
+        await adapters.wpcli.activateTheme({ url, theme: cloned.theme });
+        messages.push(`theme: activated ${cloned.theme} via WP-CLI`);
+      } catch (err) {
+        messages.push(
+          `theme: WP-CLI activation failed (${err.message}) — run on the server:`,
+          `  wp theme enable ${cloned.theme} --url=${hostOf(url)} --activate`
+        );
+      }
+    } else {
+      messages.push(
+        'theme: REST cannot activate themes — run on the server:',
+        `  wp theme enable ${cloned.theme} --url=${hostOf(url)} --activate`,
+        '(the verify theme check fails until then)'
+      );
+    }
+  }
 
   // --- URL rewrite: dry-run first, then apply, then confirm count == 0 ---
   const before = await searchReplace(ctx, sub, url, templateUrl, url, { dryRun: true });

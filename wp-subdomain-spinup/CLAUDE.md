@@ -32,12 +32,15 @@ dns: { provider: cloudflare, zone: example.com }   # cloudflare | route53 | manu
 
 ## Key commands
 ```
-spinup create <sub> --brand brand.json [--apply]
+spinup create <sub> --template template-<theme> [--brand brand.json] [--apply]
 spinup teardown <sub> [--apply]
 spinup list
-spinup verify <sub>
+spinup verify <sub> [--template template-<theme>]
 npm test                         # node --test
 ```
+`--template` overrides the config's `template_slug` per run — always pass it.
+Full human process (theme → template site → create → admin user → verify):
+see `RUNBOOK.md`; the `/spinup-site` skill automates it.
 
 ## Conventions / house rules
 - **REST-first, SSH-optional (IMPORTANT):** build every capability on REST +
