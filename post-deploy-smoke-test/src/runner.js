@@ -89,33 +89,69 @@ export async function runSmoke(config, adapter, opts = {}) {
   const now = opts.now ?? Date.now;
   const started = now();
   const results = [];
+  const requests = buildRequests(config, env, now);
 
-  for (const req of buildRequests(config, env, now)) {
-    let result;
-    if (req.missingEnv) {
-      result = {
-        path: req.check.path,
-        ok: false,
-        failures: [
-          `authed check needs env var ${req.missingEnv}, which is not set (see .env.example)`,
-        ],
-        warnings: [],
-        status: null,
-        durationMs: null,
-      };
-    } else {
-      const response = await fetchWithHardTimeout(adapter, req);
-      result = evaluateCheck(req.check, response, {
-        timeoutMs: req.timeoutMs,
-        softBudgetMs,
-        minBodyBytes: config.min_body_bytes,
-        baseUrl: config.base_url,
-      });
+  if (failFast) {
+    // Sequential execution to support stopping at the very first failure.
+    for (const req of requests) {
+      let result;
+      if (req.missingEnv) {
+        result = {
+          path: req.check.path,
+          ok: false,
+          failures: [
+            `authed check needs env var ${req.missingEnv}, which is not set (see .env.example)`,
+          ],
+          warnings: [],
+          status: null,
+          durationMs: null,
+        };
+      } else {
+        const response = await fetchWithHardTimeout(adapter, req);
+        result = evaluateCheck(req.check, response, {
+          timeoutMs: req.timeoutMs,
+          softBudgetMs,
+          minBodyBytes: config.min_body_bytes,
+          baseUrl: config.base_url,
+        });
+      }
+      result.url = req.url;
+      result.authed = req.authed;
+      results.push(result);
+      if (!result.ok) break;
     }
-    result.url = req.url;
-    result.authed = req.authed;
-    results.push(result);
-    if (failFast && !result.ok) break;
+  } else {
+    // Parallel optimization: Since all checks are independent, execute them
+    // concurrently to avoid cumulative network latency bottlenecks. This makes
+    // the overall suite run in O(max(latency)) instead of O(sum(latency)).
+    const promises = requests.map(async (req) => {
+      let result;
+      if (req.missingEnv) {
+        result = {
+          path: req.check.path,
+          ok: false,
+          failures: [
+            `authed check needs env var ${req.missingEnv}, which is not set (see .env.example)`,
+          ],
+          warnings: [],
+          status: null,
+          durationMs: null,
+        };
+      } else {
+        const response = await fetchWithHardTimeout(adapter, req);
+        result = evaluateCheck(req.check, response, {
+          timeoutMs: req.timeoutMs,
+          softBudgetMs,
+          minBodyBytes: config.min_body_bytes,
+          baseUrl: config.base_url,
+        });
+      }
+      result.url = req.url;
+      result.authed = req.authed;
+      return result;
+    });
+    const parallelResults = await Promise.all(promises);
+    results.push(...parallelResults);
   }
 
   const summary = summarize(results);
