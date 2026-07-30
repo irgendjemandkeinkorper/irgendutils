@@ -21,6 +21,7 @@ Each subfolder is an independent CLI app (`@irgendutils/<name>`, Node ESM, `bin`
 - **backup-restore-verifier** → restore a backup into a throwaway env and prove it works, then tear down.
 - **dns-ssl-uptime-monitor** → scheduled fleet watch for cert expiry, DNS drift, and downtime.
 - **wp-charset-collation-checker** → find charset/collation mismatches (mojibake cause) and emit safe conversion DDL.
+- **image-convert** → batch-convert JPG/PNG/TIFF/GIF/HEIC into WebP/AVIF, with resize, quality, and a verify-by-decoding step.
 - Other apps (dependency-update-digest, post-deploy-smoke-test, prelaunch-auditor, secrets-env-audit, sql-slow-query-analyzer, obsidian-vault-forge, repo-template, quick-issue) follow the same shape — see each one's `CLAUDE.md`.
 - **Where NOT to look:** `node_modules/`, `report/`, `out/`, `.git/`, generated fixtures.
 

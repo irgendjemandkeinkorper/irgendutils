@@ -9,7 +9,7 @@
   "type": "module",
   "scripts": {
     "dev": "node src/cli.js",
-    "test": "node test/smoke.js",
+    "test": "node --test",
     "lint": "echo 'Add linting here'"
   },
   "keywords": [

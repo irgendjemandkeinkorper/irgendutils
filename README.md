@@ -36,6 +36,8 @@ Code as the working spec.
 | 11 | **dns-ssl-uptime-monitor** | Cert expiry, DNS drift, uptime across the fleet; alerts + status page | Node/TS (scheduled) |
 | 12 | **dependency-update-digest** | Composer/npm/WP outdated across projects → one digest, security first | Node/TS (scheduled) |
 | 13 | **secrets-env-audit** | Scan for leaked secrets (incl. git history) + .env drift + web-exposed config | Node/TS |
+| 14 | **image-convert** | Batch-convert JPG/PNG/TIFF/GIF/HEIC to WebP/AVIF, with resize + verify-by-decode | Node + sharp |
+| 15 | **quick-issue** | Single-file browser app for filing templated GitHub issues fast, with attachments | Static HTML |
 
 ## How they compose
 ```
@@ -61,8 +63,9 @@ Picks #5 and #6 above are the two I speced because they plug straight into the f
 four. Other candidates worth a use case, roughly ranked by how often an agency
 workflow hits them:
 
-- **Bulk media optimizer + alt-text** — batch-convert images to WebP/AVIF, resize,
-  and auto-draft alt text (with human review) across a site's media library.
+- **Alt-text auto-draft for the media library** — image-convert (#14) already
+  handles the batch WebP/AVIF conversion + resize; a natural follow-on is
+  auto-drafting alt text (with human review) across a site's media library.
 - **DNS / SSL / uptime monitor** — scheduled check of cert expiry, DNS records, and
   uptime across all managed subdomains; alerts before things break. (Good fit for a
   recurring scheduled task.)
