@@ -19,7 +19,11 @@ issue form. No build, no server, no dependencies: open `index.html` in a browser
     - `connect()` — validate PAT, show user; `loadRepos()` — populate the repo picker
     - `buildSeverity()` — severity chips; `addFiles()` / `renderThumbs()` — attachments
     - `uploadFile()` — push a file into `issue-attachments/` in the target repo
+    - `buildLabels()` / `updateLabelHint()` — `bug` + `severity:<sev>` + `env:<stage>`,
+      reactive to the severity/stage controls; GitHub auto-creates unseen label names
     - `buildBody()` — assemble the issue markdown; `submit()` — create the issue
+    - `createIssue()` — posts with labels, retrying once *without* labels if the API
+      rejects them (e.g. an org policy blocks new labels) so the report isn't lost
     - `toBase64()` — file → base64 for the Contents API
 - **Where NOT to look:** nothing generated here; `README.md` is user docs.
 

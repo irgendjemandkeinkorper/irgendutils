@@ -172,6 +172,9 @@
       <div class="bar">
         <label style="margin:0;font-weight:400"><input type="checkbox" id="prefix" checked> Prefix title with severity, e.g. <code>[HIGH]</code></label>
       </div>
+      <div class="bar" style="margin-top:10px">
+        <label style="margin:0;font-weight:400"><input type="checkbox" id="autoLabels" checked> Apply labels <span class="hint" id="labelHint"></span></label>
+      </div>
       <div class="bar" style="margin-top:14px">
         <button id="submit" class="primary grow">Create issue &nbsp;<span class="hint" style="color:#cfe0ff">⌘/Ctrl+Enter</span></button>
         <button id="reset" class="link">Clear form</button>
@@ -253,10 +256,30 @@ function buildSeverity() {
     const b = document.createElement("button");
     b.className = "sev-btn"; b.dataset.sev = s; b.textContent = s;
     b.dataset.active = s === state.sev ? "1" : "0";
-    b.onclick = () => { state.sev = s; [...g.children].forEach(c => c.dataset.active = c.dataset.sev === s ? "1" : "0"); };
+    b.onclick = () => {
+      state.sev = s;
+      [...g.children].forEach(c => c.dataset.active = c.dataset.sev === s ? "1" : "0");
+      updateLabelHint();
+    };
     g.appendChild(b);
   });
+  updateLabelHint();
 }
+
+// ---------- labels ----------
+// GitHub auto-creates any label name that doesn't already exist yet when it's
+// included on issue creation, so no separate "create label" call is needed.
+function buildLabels() {
+  if (!$("autoLabels").checked) return [];
+  return ["bug", `severity:${state.sev.toLowerCase()}`, `env:${$("stage").value.toLowerCase()}`];
+}
+function updateLabelHint() {
+  const hint = $("labelHint");
+  if (!$("autoLabels").checked) { hint.textContent = "— none"; return; }
+  hint.textContent = "— " + buildLabels().join(", ") + " (created automatically if new)";
+}
+$("stage").addEventListener("change", updateLabelHint);
+$("autoLabels").addEventListener("change", updateLabelHint);
 
 // ---------- attachments ----------
 const MAX_MB = 25;
@@ -315,9 +338,7 @@ async function submit() {
     setStatus("info", "Creating issue…");
     const body = buildBody(repo, media);
     const finalTitle = $("prefix").checked ? `[${state.sev.toUpperCase()}] ${title}` : title;
-    const issue = await ghJSON(`${API}/repos/${repo.owner}/${repo.name}/issues`, {
-      method: "POST", body: JSON.stringify({ title: finalTitle, body })
-    });
+    const issue = await createIssue(repo, finalTitle, body, buildLabels());
     setStatus("ok", `✅ Created <a href="${issue.html_url}" target="_blank">#${issue.number}</a> in ${repo.owner}/${repo.name}. `
       + `<a href="#" id="another">File another →</a>`);
     $("another").onclick = e => { e.preventDefault(); $("reset").click(); };
@@ -326,6 +347,22 @@ async function submit() {
     setStatus("err", "Failed: " + e.message);
   } finally {
     $("submit").disabled = false;
+  }
+}
+
+// Creating the issue with labels can fail (e.g. an org rule blocks new label
+// creation) even though the issue content itself is fine — retry once without
+// labels rather than losing a fully-typed bug report over that.
+async function createIssue(repo, title, body, labels) {
+  const post = extra => ghJSON(`${API}/repos/${repo.owner}/${repo.name}/issues`, {
+    method: "POST", body: JSON.stringify({ title, body, ...extra })
+  });
+  if (!labels.length) return post({});
+  try {
+    return await post({ labels });
+  } catch (e) {
+    setStatus("info", `Labels rejected (${e.message}) — retrying without labels…`);
+    return post({});
   }
 }
 

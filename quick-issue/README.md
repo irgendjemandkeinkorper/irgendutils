@@ -20,6 +20,16 @@ Open `index.html` in a browser (double-click, or host it — see below).
 4. **Attach** images or video (drag-drop, click, or paste).
 5. **Create** — `⌘/Ctrl+Enter` also submits. The new issue opens in a tab.
 
+## Labels
+
+With **Apply labels** ticked (default), the issue is created with `bug`,
+`severity:<critical|high|medium|low>`, and `env:<production|staging|local|dev>`
+— GitHub creates any of these that don't already exist in the repo, no setup
+needed. The hint next to the checkbox always shows exactly which labels will
+be applied as you change severity/stage. If label creation is ever rejected
+(e.g. an org policy blocks new labels), the issue is retried once without
+labels rather than losing the report — you'll see a note when that happens.
+
 ## How attachments work
 
 GitHub's native drag-and-drop upload is a private endpoint unavailable to the
