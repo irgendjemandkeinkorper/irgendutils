@@ -1,0 +1,52 @@
+{
+  "baseUrl": "https://good.example.com",
+  "environment": "production",
+  "pages": {
+    "/": {
+      "file": "pages/home.html",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "SAMEORIGIN",
+        "referrer-policy": "strict-origin-when-cross-origin"
+      }
+    },
+    "/about/": {
+      "file": "pages/about.html",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "SAMEORIGIN",
+        "referrer-policy": "strict-origin-when-cross-origin"
+      }
+    }
+  },
+  "resources": {
+    "http://good.example.com/": { "status": 301, "headers": { "location": "https://good.example.com/" } },
+    "/robots.txt": { "status": 200, "body": "User-agent: *\nDisallow:\n\nSitemap: https://good.example.com/sitemap.xml\n" },
+    "/sitemap.xml": { "status": 200, "body": "<?xml version=\"1.0\"?><urlset><url><loc>https://good.example.com/</loc></url><url><loc>https://good.example.com/about/</loc></url></urlset>" },
+    "/readme.html": { "status": 404 },
+    "/xmlrpc.php": { "status": 403 },
+    "/wp-json/wp/v2/users": { "status": 401 },
+    "/prelaunch-auditor-404-probe": {
+      "status": 404,
+      "body": "<html><body><h1>Page not found</h1><p>Sorry, we couldn't find that page. Head back to the <a href=\"/\">homepage</a> or check out our <a href=\"/about/\">about page</a> to learn more about Acme Co, our Vermont workshop, and the handmade solid-wood furniture we build there by hand every single day of the year.</p></body></html>"
+    }
+  },
+  "perf": {
+    "mobile": [
+      { "lcp_ms": 2100, "tbt_ms": 120, "cls": 0.04, "performance_score": 0.91 },
+      { "lcp_ms": 2200, "tbt_ms": 140, "cls": 0.05, "performance_score": 0.90 },
+      { "lcp_ms": 2050, "tbt_ms": 110, "cls": 0.03, "performance_score": 0.92 }
+    ],
+    "desktop": [
+      { "lcp_ms": 1100, "tbt_ms": 60, "cls": 0.01, "performance_score": 0.97 },
+      { "lcp_ms": 1150, "tbt_ms": 70, "cls": 0.02, "performance_score": 0.96 },
+      { "lcp_ms": 1200, "tbt_ms": 65, "cls": 0.015, "performance_score": 0.97 }
+    ]
+  }
+}

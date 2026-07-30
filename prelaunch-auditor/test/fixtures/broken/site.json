@@ -1,0 +1,20 @@
+{
+  "baseUrl": "http://broken.example.com",
+  "environment": "production",
+  "pages": {
+    "/": { "file": "pages/home.html", "status": 200, "headers": {} }
+  },
+  "resources": {
+    "/robots.txt": { "status": 200, "body": "User-agent: *\nDisallow: /\n" },
+    "/sitemap.xml": { "status": 404 },
+    "/sitemap_index.xml": { "status": 404 },
+    "/readme.html": { "status": 200, "body": "<html><body>WordPress readme</body></html>" },
+    "/xmlrpc.php": { "status": 200 },
+    "/wp-json/wp/v2/users": { "status": 200, "body": "[{\"slug\":\"admin\"}]" },
+    "/prelaunch-auditor-404-probe": { "status": 200, "body": "<html><body>ok</body></html>" }
+  },
+  "perf": {
+    "mobile": [{ "lcp_ms": 6000, "tbt_ms": 900, "cls": 0.4, "performance_score": 0.35 }],
+    "desktop": [{ "lcp_ms": 4000, "tbt_ms": 700, "cls": 0.3, "performance_score": 0.4 }]
+  }
+}
