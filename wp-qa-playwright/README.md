@@ -152,6 +152,22 @@ Each run writes `report/<timestamp>/`:
 
 ## Gate a deploy (CI)
 
+A ready-to-use workflow lives at `.github/workflows/wp-qa.yml` (repo root): it
+runs this app's own offline test suite on every push/PR touching
+`wp-qa-playwright/`, and runs a real `qa run` on a daily schedule (or manual
+`workflow_dispatch`, optionally against a single `target_url`/`checks`
+override). The live job needs two repo secrets:
+
+- `QA_CONFIG_YML` — the full contents of your real `qa.config.yml` (this file
+  is gitignored on purpose, since it holds internal URLs — see `.gitignore`).
+- `WP_APP_PASSWORD` — only if `auth.app_password_env` is set in that config.
+
+It uploads `report/` as a build artifact on every live run, pass or fail.
+
+To embed a QA gate directly into your **own** deploy pipeline instead (e.g.
+right after a deploy step, using that pipeline's own checkout), the same shape
+looks like:
+
 ```yaml
 # .github/workflows/deploy.yml (excerpt)
   qa:

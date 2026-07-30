@@ -52,6 +52,13 @@ npm test                     # node --test
   fixture produces ≥1 finding per implemented check; two runs of an unchanged page diff
   under threshold; exit code reflects pass/fail.
 
+## CI
+`.github/workflows/wp-qa.yml` (repo root): offline `npm test` on push/PR to this
+app; a real `qa run` on schedule/`workflow_dispatch`, gated behind the
+`QA_CONFIG_YML` + `WP_APP_PASSWORD` repo secrets (the real `qa.config.yml` is
+gitignored — see README's "Gate a deploy (CI)" section). Playwright is installed
+as a job-local step, not a package dependency — see the gotcha below.
+
 ## Gotchas
 - Lazy-loaded images/fonts cause flaky screenshots — wait for `networkidle` + fonts-ready
   and scroll to trigger lazy loads before capturing.

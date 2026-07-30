@@ -1,0 +1,102 @@
+name: wp-qa-playwright
+
+# Two independent jobs, deliberately kept apart:
+#   test     — the tool's own offline test suite (fake adapter, no network,
+#              no browser). Runs on every push/PR touching the app.
+#   qa-live  — the actual `qa run` against a real template + targets. Needs
+#              Playwright + browser binaries and real config/secrets, so it
+#              only runs on a schedule or manual dispatch — never on a PR to
+#              this repo, since a PR here changes the tool, not the site.
+#
+# qa.config.yml holds internal URLs and is intentionally gitignored (see
+# wp-qa-playwright/.gitignore), so qa-live reconstructs it from the
+# QA_CONFIG_YML repo secret before running.
+
+on:
+  pull_request:
+    paths:
+      - 'wp-qa-playwright/**'
+      - '.github/workflows/wp-qa.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'wp-qa-playwright/**'
+      - '.github/workflows/wp-qa.yml'
+  schedule:
+    - cron: '0 6 * * *' # daily 06:00 UTC — adjust to taste, or drop if only manual runs are wanted
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Run against a single URL instead of the configured targets (optional)'
+        required: false
+      checks:
+        description: 'Comma-separated check subset, e.g. visual,links (optional; default: all)'
+        required: false
+
+jobs:
+  test:
+    name: Unit tests (offline)
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: wp-qa-playwright
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npm test
+
+  qa-live:
+    name: QA vs. template (live)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: wp-qa-playwright
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+
+      # Playwright is a deliberate opt-in dependency (see adapters/playwright.js)
+      # so the package has zero mandatory installs — install it only for the
+      # job that actually drives a browser.
+      - name: Install Playwright + Chromium
+        run: |
+          npm install -D playwright
+          npx playwright install --with-deps chromium
+
+      - name: Write qa.config.yml from secret
+        env:
+          QA_CONFIG_YML: ${{ secrets.QA_CONFIG_YML }}
+        run: |
+          if [ -z "$QA_CONFIG_YML" ]; then
+            echo "::error::Repo secret QA_CONFIG_YML is not set. Add your qa.config.yml contents (template_url, targets, thresholds, etc.) as a secret with that name to enable this job." >&2
+            exit 1
+          fi
+          printf '%s\n' "$QA_CONFIG_YML" > qa.config.yml
+
+      - name: Run qa
+        env:
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+          TARGET_URL: ${{ inputs.target_url }}
+          CHECKS: ${{ inputs.checks }}
+        run: |
+          args=(run --json)
+          [ -n "$TARGET_URL" ] && args+=("$TARGET_URL")
+          [ -n "$CHECKS" ] && args+=(--checks "$CHECKS")
+          node src/cli.js "${args[@]}"
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp-qa-report-${{ github.run_id }}
+          path: wp-qa-playwright/report/
+          retention-days: 30
+          if-no-files-found: ignore
