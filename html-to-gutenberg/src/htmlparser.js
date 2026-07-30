@@ -19,6 +19,11 @@ const BLOCK_STARTS = new Set([
 
 const HEADINGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
 
+// Static lookup sets used inside parseHTML to avoid allocating thousands of short-lived
+// Set objects in the parser's hot loop when parsing table tags (tr, td, th).
+const STOP_TR = new Set(['table', 'thead', 'tbody', 'tfoot']);
+const STOP_TD_TH = new Set(['table', 'thead', 'tbody', 'tfoot', 'tr']);
+
 export function parseHTML(input) {
   const root = { type: 'root', tag: '#root', children: [] };
   const stack = [root];
@@ -110,9 +115,7 @@ export function parseHTML(input) {
       }
     }
     if (tag === 'tr' || tag === 'td' || tag === 'th') {
-      const stop = new Set(tag === 'tr'
-        ? ['table', 'thead', 'tbody', 'tfoot']
-        : ['table', 'thead', 'tbody', 'tfoot', 'tr']);
+      const stop = tag === 'tr' ? STOP_TR : STOP_TD_TH;
       for (let s = stack.length - 1; s > 0; s--) {
         const t = stack[s].tag;
         if (stop.has(t)) break;
