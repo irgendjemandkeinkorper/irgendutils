@@ -49,7 +49,28 @@ The whole point: run `smoke` right after a deploy and let its exit code gate the
 pipeline. A non-zero exit stops the rollout (or triggers rollback); a hung URL
 can't stall it thanks to the hard per-check timeout.
 
-GitHub Actions — smoke-test the production origin after deploy, roll back on failure:
+A ready-to-use, callable workflow lives at
+`.github/workflows/post-deploy-smoke.yml` (repo root): it runs this app's own
+offline test suite on every push/PR touching `post-deploy-smoke-test/`, plus a
+`smoke` job you can trigger manually (`workflow_dispatch`, with a `url` input)
+or call directly from **another repo's** deploy pipeline via `workflow_call`:
+
+```yaml
+jobs:
+  smoke:
+    needs: deploy
+    uses: irgendjemandkeinkorper/irgendutils/.github/workflows/post-deploy-smoke.yml@main
+    with:
+      url: https://acme.example.com
+      config_yaml: ${{ vars.SMOKE_YML }}   # or inline the smoke.yml contents directly
+      fail_fast: false
+    secrets:
+      WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+```
+
+It uploads `results.json` as a build artifact and exposes a `passed` output
+you can branch a rollback step on. To embed the CLI directly into your own
+pipeline instead (no cross-repo call), the same shape looks like:
 
 ```yaml
 # .github/workflows/deploy.yml (excerpt)

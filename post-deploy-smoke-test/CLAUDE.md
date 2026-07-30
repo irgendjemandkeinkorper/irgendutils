@@ -46,6 +46,16 @@ tiny body) · valid JSON when `json:true` · TLS valid (quick) · response time 
 - Test the deploy target/origin directly, not just the CDN (a cached good copy masks a
   broken origin). Assert on stable proof strings, never volatile content (prices/timestamps).
 
+## CI
+`.github/workflows/post-deploy-smoke.yml` (repo root): offline `npm test` on
+push/PR to this app; a `smoke` job runnable via `workflow_dispatch` or called
+from another repo's deploy pipeline via `workflow_call` (inputs: `url`,
+`config_yaml`, `fail_fast`; secret: `WP_APP_PASSWORD`; output: `passed`). That
+job always checks out `irgendutils` at `main` explicitly — a reusable
+workflow's default checkout follows the *caller's* repo, not this one, so
+without that override the CLI source wouldn't be present when called
+externally. See README's "Gate a deploy (CI)" section for the call shape.
+
 ## Commands
 ```
 smoke run                                              # all checks vs base_url

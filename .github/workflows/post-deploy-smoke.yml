@@ -1,0 +1,138 @@
+name: post-deploy-smoke-test
+
+# Two independent jobs:
+#   test   — the tool's own offline test suite (fixture adapter, no network).
+#            Runs on push/PR touching this app.
+#   smoke  — the actual `smoke run` against a real URL, right after a deploy.
+#            Triggered manually (workflow_dispatch) for ad-hoc runs, or called
+#            from ANOTHER repo's deploy pipeline via workflow_call — e.g.:
+#
+#              jobs:
+#                smoke:
+#                  uses: irgendjemandkeinkorper/irgendutils/.github/workflows/post-deploy-smoke.yml@main
+#                  with:
+#                    url: https://acme.example.com
+#                    config_yaml: ${{ vars.SMOKE_YML }}   # or inline the YAML directly
+#                  secrets:
+#                    WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+#
+#            Because a reusable workflow's default checkout follows the CALLER's
+#            repo/ref, the smoke job explicitly checks out irgendutils itself
+#            (main) so the CLI is present no matter who calls it.
+
+on:
+  pull_request:
+    paths:
+      - 'post-deploy-smoke-test/**'
+      - '.github/workflows/post-deploy-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'post-deploy-smoke-test/**'
+      - '.github/workflows/post-deploy-smoke.yml'
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Base URL to smoke test'
+        required: true
+        type: string
+      config_yaml:
+        description: 'Full contents of smoke.yml for this run (optional; falls back to smoke.example.yml)'
+        required: false
+        type: string
+      fail_fast:
+        description: 'Stop at the first failing check'
+        required: false
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      url:
+        description: 'Base URL to smoke test'
+        required: true
+        type: string
+      config_yaml:
+        description: 'Full contents of smoke.yml for this run (optional; falls back to smoke.example.yml)'
+        required: false
+        type: string
+      fail_fast:
+        description: 'Stop at the first failing check'
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      WP_APP_PASSWORD:
+        required: false
+    outputs:
+      passed:
+        description: 'true if every check passed, false otherwise'
+        value: ${{ jobs.smoke.outputs.passed }}
+
+jobs:
+  test:
+    name: Unit tests (offline)
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: post-deploy-smoke-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm test
+
+  smoke:
+    name: Post-deploy smoke test
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call'
+    runs-on: ubuntu-latest
+    outputs:
+      passed: ${{ steps.run.outputs.passed }}
+    defaults:
+      run:
+        working-directory: post-deploy-smoke-test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: irgendjemandkeinkorper/irgendutils
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Write smoke.yml
+        env:
+          CONFIG_YAML: ${{ inputs.config_yaml }}
+        run: |
+          if [ -n "$CONFIG_YAML" ]; then
+            printf '%s\n' "$CONFIG_YAML" > smoke.yml
+          else
+            echo "::warning::No config_yaml input given — falling back to smoke.example.yml, which will not match your real site."
+            cp smoke.example.yml smoke.yml
+          fi
+
+      - name: Run smoke
+        id: run
+        env:
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+          TARGET_URL: ${{ inputs.url }}
+          FAIL_FAST: ${{ inputs.fail_fast }}
+        run: |
+          set +e
+          args=(run --url "$TARGET_URL" --no-color)
+          [ "$FAIL_FAST" = "true" ] && args+=(--fail-fast)
+          node src/cli.js "${args[@]}"
+          code=$?
+          echo "passed=$([ "$code" -eq 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          exit $code
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-results-${{ github.run_id }}
+          path: post-deploy-smoke-test/results.json
+          retention-days: 30
+          if-no-files-found: ignore
