@@ -1,0 +1,88 @@
+{
+  "tool": "@irgendutils/prelaunch-auditor",
+  "generatedAt": "2026-07-31T03:44:49.148Z",
+  "baseUrl": "https://good.example.com",
+  "environment": "production",
+  "categories": [
+    "seo",
+    "a11y",
+    "perf",
+    "security",
+    "content",
+    "analytics"
+  ],
+  "pagesAudited": [
+    "https://good.example.com/",
+    "https://good.example.com/about/"
+  ],
+  "pass": true,
+  "summary": {
+    "blocker": 0,
+    "warning": 0,
+    "info": 5,
+    "byCategory": {
+      "a11y": {
+        "blocker": 0,
+        "warning": 0,
+        "info": 1
+      },
+      "perf": {
+        "blocker": 0,
+        "warning": 0,
+        "info": 2
+      },
+      "security": {
+        "blocker": 0,
+        "warning": 0,
+        "info": 1
+      },
+      "analytics": {
+        "blocker": 0,
+        "warning": 0,
+        "info": 1
+      }
+    }
+  },
+  "findings": [
+    {
+      "category": "a11y",
+      "id": "automated-only",
+      "severity": "info",
+      "message": "Accessibility results are automated checks only — not a substitute for a manual audit with assistive technology.",
+      "fix": "Schedule a manual keyboard + screen-reader pass before launch.",
+      "url": null
+    },
+    {
+      "category": "perf",
+      "id": "desktop-within-budget",
+      "severity": "info",
+      "message": "desktop: all metrics within budget (median of 1 runs).",
+      "fix": "No action needed.",
+      "url": "https://good.example.com"
+    },
+    {
+      "category": "perf",
+      "id": "mobile-within-budget",
+      "severity": "info",
+      "message": "mobile: all metrics within budget (median of 1 runs).",
+      "fix": "No action needed.",
+      "url": "https://good.example.com"
+    },
+    {
+      "category": "security",
+      "id": "xmlrpc-state",
+      "severity": "info",
+      "message": "XML-RPC endpoint appears disabled/blocked (HTTP 403).",
+      "fix": "No action needed.",
+      "url": "https://good.example.com/xmlrpc.php"
+    },
+    {
+      "category": "analytics",
+      "id": "tracking-present",
+      "severity": "info",
+      "message": "An analytics/tracking tag was detected.",
+      "fix": "Verify events arrive in the analytics property for THIS (production) domain after launch.",
+      "url": "https://good.example.com"
+    }
+  ]
+}

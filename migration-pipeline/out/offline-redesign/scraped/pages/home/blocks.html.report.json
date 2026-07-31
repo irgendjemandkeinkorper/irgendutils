@@ -1,0 +1,11 @@
+{
+  "totalBlocks": 2,
+  "blockCounts": {
+    "core/heading": 1,
+    "core/paragraph": 1
+  },
+  "fallbacks": [],
+  "dropped": [],
+  "grammarWarnings": [],
+  "ok": true
+}

@@ -1,0 +1,11 @@
+mode: standalone
+network_url: "https://example.com"
+wp_cli_ssh:
+template_slug: _template
+rest:
+  base_url: "https://{sub}.example.com"
+  user: automation
+  app_password_env: WP_APP_PASSWORD
+dns:
+  provider: manual
+  zone: example.com

@@ -1,0 +1,10 @@
+template_url: "https://template.example.com/"
+targets: ["https://good.example.com/"]
+viewports: [360, 1280]
+thresholds:
+  pixel_diff_pct: 0.15
+  max_broken_links: 0
+checks: [visual, links, console, headings, responsive, wp_hygiene]
+adapter: fake
+fixture: /app/wp-qa-playwright/fixtures/capture.json
+report_dir: ./out/offline-redesign/qa-report

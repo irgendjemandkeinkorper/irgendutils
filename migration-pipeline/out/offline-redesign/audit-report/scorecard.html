@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Pre-launch scorecard — https://good.example.com</title>
+<style>
+  body { font: 14px/1.5 -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 2rem; background: #0b0e14; color: #e6e6e6; }
+  a { color: #6cb6ff; }
+  h1 { font-size: 1.3rem; margin: 0 0 0.25rem; }
+  .meta { color: #9aa4b2; margin-bottom: 1.25rem; }
+  .verdict { display: inline-block; padding: 0.35rem 0.9rem; border-radius: 6px; font-weight: 700; margin-bottom: 1.5rem; }
+  .verdict.pass { background: #123e2a; color: #6fe3a3; }
+  .verdict.fail { background: #3e1414; color: #ff8a8a; }
+  .counts { margin-bottom: 1.5rem; color: #cfd6e0; }
+  .counts b.blocker { color: #ff8a8a; } .counts b.warning { color: #ffd479; } .counts b.info { color: #9aa4b2; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 0.7rem 0.6rem; border-bottom: 1px solid #232a36; vertical-align: top; }
+  td.sev { width: 6.5rem; font-weight: 700; white-space: nowrap; }
+  td.cat { width: 8rem; color: #9aa4b2; white-space: nowrap; }
+  tr.sev-blocker td.sev { color: #ff8a8a; }
+  tr.sev-warning td.sev { color: #ffd479; }
+  tr.sev-info td.sev { color: #9aa4b2; }
+  .msg { margin-bottom: 0.25rem; }
+  .fix { color: #b7c0cc; }
+  .url { margin-top: 0.25rem; font-size: 0.85em; word-break: break-all; }
+  footer { margin-top: 2rem; color: #6b7684; font-size: 0.85em; }
+</style></head>
+<body>
+  <h1>Pre-launch scorecard</h1>
+  <div class="meta">https://good.example.com &middot; environment: production &middot; 2 page(s) audited &middot; generated 2026-07-31T03:44:49.148Z</div>
+  <div class="verdict pass">READY (no blockers)</div>
+  <div class="counts"><b class="blocker">0</b> blocker(s) &middot; <b class="warning">0</b> warning(s) &middot; <b class="info">5</b> info</div>
+  <table>
+    <thead><tr><td>Severity</td><td>Category</td><td>Finding</td></tr></thead>
+    <tbody><tr class="sev-info">
+    <td class="sev">Info</td>
+    <td class="cat">Accessibility</td>
+    <td>
+      <div class="msg">Accessibility results are automated checks only — not a substitute for a manual audit with assistive technology.</div>
+      <div class="fix"><strong>Fix:</strong> Schedule a manual keyboard + screen-reader pass before launch.</div>
+
+    </td>
+  </tr>
+<tr class="sev-info">
+    <td class="sev">Info</td>
+    <td class="cat">Performance</td>
+    <td>
+      <div class="msg">desktop: all metrics within budget (median of 1 runs).</div>
+      <div class="fix"><strong>Fix:</strong> No action needed.</div>
+      <div class="url"><a href="https://good.example.com" target="_blank" rel="noopener">https://good.example.com</a></div>
+    </td>
+  </tr>
+<tr class="sev-info">
+    <td class="sev">Info</td>
+    <td class="cat">Performance</td>
+    <td>
+      <div class="msg">mobile: all metrics within budget (median of 1 runs).</div>
+      <div class="fix"><strong>Fix:</strong> No action needed.</div>
+      <div class="url"><a href="https://good.example.com" target="_blank" rel="noopener">https://good.example.com</a></div>
+    </td>
+  </tr>
+<tr class="sev-info">
+    <td class="sev">Info</td>
+    <td class="cat">Security / hygiene</td>
+    <td>
+      <div class="msg">XML-RPC endpoint appears disabled/blocked (HTTP 403).</div>
+      <div class="fix"><strong>Fix:</strong> No action needed.</div>
+      <div class="url"><a href="https://good.example.com/xmlrpc.php" target="_blank" rel="noopener">https://good.example.com/xmlrpc.php</a></div>
+    </td>
+  </tr>
+<tr class="sev-info">
+    <td class="sev">Info</td>
+    <td class="cat">Analytics / consent</td>
+    <td>
+      <div class="msg">An analytics/tracking tag was detected.</div>
+      <div class="fix"><strong>Fix:</strong> Verify events arrive in the analytics property for THIS (production) domain after launch.</div>
+      <div class="url"><a href="https://good.example.com" target="_blank" rel="noopener">https://good.example.com</a></div>
+    </td>
+  </tr></tbody>
+  </table>
+  <footer>Automated checks only — not a substitute for a manual review. @irgendutils/prelaunch-auditor</footer>
+</body></html>

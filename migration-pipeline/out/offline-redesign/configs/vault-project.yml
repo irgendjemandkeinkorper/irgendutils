@@ -1,0 +1,11 @@
+name: Offline Redesign
+client: Acme Co
+slug: offline-redesign
+status: active
+site_urls: ["https://old.example.com"]
+stakeholders:
+  - { name: Jane Doe, role: Client PM, email: jane@acme.com }
+links:
+  staging: "https://offline-staging.example.com"
+  repo: "git@github.com:acme/redesign.git"
+tags: [wordpress, migration]

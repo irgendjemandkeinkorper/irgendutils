@@ -1,0 +1,91 @@
+{
+  "slug": "offline-redesign",
+  "lastCompletedStage": "audit",
+  "stages": {
+    "scrape": {
+      "status": "completed",
+      "duration_ms": 50,
+      "artifacts": [
+        "out/offline-redesign/scraped/manifest.json"
+      ],
+      "startedAt": "2026-07-31T03:44:48.196Z",
+      "completedAt": "2026-07-31T03:44:48.246Z"
+    },
+    "convert": {
+      "status": "completed",
+      "duration_ms": 76,
+      "artifacts": [
+        "out/offline-redesign/scraped/pages/home/blocks.html"
+      ],
+      "startedAt": "2026-07-31T03:44:48.247Z",
+      "completedAt": "2026-07-31T03:44:48.323Z"
+    },
+    "vault": {
+      "status": "completed",
+      "duration_ms": 74,
+      "artifacts": [
+        "out/offline-redesign/vaults/offline-redesign"
+      ],
+      "startedAt": "2026-07-31T03:44:48.323Z",
+      "completedAt": "2026-07-31T03:44:48.398Z"
+    },
+    "spinup": {
+      "status": "completed",
+      "duration_ms": 66,
+      "artifacts": [
+        "Subdomain: offline-staging"
+      ],
+      "startedAt": "2026-07-31T03:44:48.917Z",
+      "completedAt": "2026-07-31T03:44:48.983Z"
+    },
+    "qa": {
+      "status": "completed",
+      "duration_ms": 82,
+      "artifacts": [
+        "./out/offline-redesign/qa-report"
+      ],
+      "startedAt": "2026-07-31T03:44:48.983Z",
+      "completedAt": "2026-07-31T03:44:49.066Z"
+    },
+    "audit": {
+      "status": "completed",
+      "duration_ms": 89,
+      "artifacts": [
+        "./out/offline-redesign/audit-report"
+      ],
+      "startedAt": "2026-07-31T03:44:49.066Z",
+      "completedAt": "2026-07-31T03:44:49.155Z"
+    }
+  },
+  "history": [
+    {
+      "timestamp": "2026-07-31T03:44:48.738Z",
+      "success": true,
+      "stages": [
+        "scrape",
+        "convert",
+        "vault",
+        "spinup",
+        "qa",
+        "audit"
+      ]
+    },
+    {
+      "timestamp": "2026-07-31T03:44:48.912Z",
+      "success": true,
+      "stages": [
+        "qa",
+        "audit"
+      ]
+    },
+    {
+      "timestamp": "2026-07-31T03:44:49.156Z",
+      "success": true,
+      "stages": [
+        "spinup",
+        "qa",
+        "audit"
+      ]
+    }
+  ]
+}

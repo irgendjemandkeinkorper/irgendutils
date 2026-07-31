@@ -1,0 +1,51 @@
+# Offline pipeline fixture configuration for end-to-end testing
+name: Offline Redesign
+client: Acme Co
+slug: offline-redesign
+status: active
+site_urls:
+  - https://old.example.com
+
+scraper:
+  start_urls:
+    - https://old.example.com
+  output_dir: ./out/offline-redesign/scraped
+
+vault_forge:
+  output_dir: ./out/offline-redesign/vaults
+  stakeholders:
+    - { name: Jane Doe, role: Client PM, email: jane@acme.com }
+  links:
+    staging: https://offline-staging.example.com
+    repo: git@github.com:acme/redesign.git
+
+subdomain_spinup:
+  subdomain: offline-staging
+  mode: standalone
+  network_url: https://example.com
+  rest:
+    base_url: https://{sub}.example.com
+    user: automation
+    app_password_env: WP_APP_PASSWORD
+
+html_to_gutenberg:
+  push: false
+  status: draft
+  media: link
+
+qa:
+  template_url: https://template.example.com/
+  target_url: https://good.example.com/
+  viewports: [360, 1280]
+  thresholds:
+    pixel_diff_pct: 0.15
+    max_broken_links: 0
+  checks: [visual, links, console, headings, responsive, wp_hygiene]
+  baseline_dir: ./out/offline-redesign/qa-baseline
+  report_dir: ./out/offline-redesign/qa-report
+
+auditor:
+  environment: staging
+  runs: 1
+  max_pages: 5
+  report_dir: ./out/offline-redesign/audit-report
