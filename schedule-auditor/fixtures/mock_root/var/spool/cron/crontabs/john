@@ -1,0 +1,5 @@
+# User crontab (no user field, owner is defined by filename/caller)
+# m h dom mon dow command
+30 1 * * * /usr/local/bin/user-report.sh
+# Every minute run
+*/1 * * * * /usr/local/bin/fast-user-task.sh

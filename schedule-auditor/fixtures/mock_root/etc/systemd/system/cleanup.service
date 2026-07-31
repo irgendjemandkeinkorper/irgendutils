@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Cleanup Service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/bin/cleanup.sh
+Environment="CLEANUP_TOKEN=secret_env_token_value"
+EnvironmentFile=/etc/default/cleanup

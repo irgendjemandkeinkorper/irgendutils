@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Cleanup Timer
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=cleanup.service
+
+[Install]
+WantedBy=timers.target
