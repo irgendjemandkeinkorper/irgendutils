@@ -1,0 +1,7 @@
+[
+  {
+    "name": "sqlite-database-integration",
+    "status": "must-use",
+    "version": "1.8.1"
+  }
+]

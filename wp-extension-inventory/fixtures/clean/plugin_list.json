@@ -1,0 +1,16 @@
+[
+  {
+    "name": "akismet",
+    "status": "active",
+    "update": "none",
+    "version": "5.3",
+    "auto_update": "on"
+  },
+  {
+    "name": "wp-seo",
+    "status": "active",
+    "update": "none",
+    "version": "22.4",
+    "auto_update": "on"
+  }
+]

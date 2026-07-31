@@ -1,0 +1,31 @@
+[
+  {
+    "name": "akismet",
+    "status": "active",
+    "update": "available",
+    "version": "5.0",
+    "update_version": "5.3",
+    "auto_update": "off"
+  },
+  {
+    "name": "hello-dolly",
+    "status": "inactive",
+    "update": "none",
+    "version": "1.7.2",
+    "auto_update": "off"
+  },
+  {
+    "name": "custom-untracked-plugin",
+    "status": "active",
+    "update": "none",
+    "version": "",
+    "auto_update": "off"
+  },
+  {
+    "name": "easy-wp-smtp",
+    "status": "active",
+    "update": "none",
+    "version": "1.4.1",
+    "auto_update": "off"
+  }
+]
