@@ -1,0 +1,14 @@
+[
+    {
+        "url": "https://example.com/valid",
+        "file": "valid.html"
+    },
+    {
+        "url": "https://example.com/graph-page",
+        "file": "graph.html"
+    },
+    {
+        "url": "https://example.com/malformed",
+        "file": "malformed.html"
+    }
+]
