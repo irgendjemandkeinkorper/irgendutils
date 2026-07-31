@@ -1,0 +1,22 @@
+{
+  "compressionlevel": -1,
+  "height": 4,
+  "infinite": false,
+  "layers": [],
+  "nextlayerid": 1,
+  "nextobjectid": 1,
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "tiledversion": "1.10.1",
+  "tileheight": 8,
+  "tilewidth": 8,
+  "tilesets": [
+    {
+      "firstgid": 1,
+      "source": "../clean/Tileset.tsj"
+    }
+  ],
+  "type": "map",
+  "version": "1.10",
+  "width": 4
+}
