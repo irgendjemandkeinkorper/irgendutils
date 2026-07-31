@@ -1,0 +1,28 @@
+{
+  "name": "@irgendutils/content-freshness-report",
+  "version": "0.1.0",
+  "description": "Editorial maintenance tool: analyzes scraper manifests or crawled outputs to flag stale/unknown dates, thin content, weak heading structure, duplicate metadata, and orphan pages. Emits reports with priority scoring and deterministic snapshot comparisons.",
+  "type": "module",
+  "bin": {
+    "freshness": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "freshness": "node src/cli.js"
+  },
+  "keywords": [
+    "content-audit",
+    "freshness",
+    "seo",
+    "thin-content",
+    "orphan-pages",
+    "headings-checker",
+    "editorial",
+    "maintenance"
+  ],
+  "author": "irgendjemandkeinkorper",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

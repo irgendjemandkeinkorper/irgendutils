@@ -1,0 +1,14 @@
+URL,Relative Path,Title,Word Count,Priority Score,Finding Type,Severity,Finding Score,Message
+https://example.com/blog-post,/blog-post,Blog Post Title,136,160,duplicate_description,Medium-High,60,"Duplicate meta description found with 1 other page(s): ""Welcome to our site"""
+https://example.com/blog-post,/blog-post,Blog Post Title,136,160,multiple_h1s,Medium,40,Page has multiple H1 headings (2 found).
+https://example.com/blog-post,/blog-post,Blog Post Title,136,160,thin_content,Medium-Low,30,"Content is thin (136 words, threshold: 300 words)."
+https://example.com/blog-post,/blog-post,Blog Post Title,136,160,non_sequential_headings,Low,20,"Heading hierarchy skipped from H2 to H4 (""H4: Deep Nesting"")."
+https://example.com/blog-post,/blog-post,Blog Post Title,136,160,unknown_date,Low,10,Last modified/publish date is unknown.
+https://example.com/orphan,/orphan,Orphan Page,5,140,orphan_page,Critical,100,Page is an orphan with no internal inbound links.
+https://example.com/orphan,/orphan,Orphan Page,5,140,thin_content,Medium-Low,30,"Content is thin (5 words, threshold: 300 words)."
+https://example.com/orphan,/orphan,Orphan Page,5,140,unknown_date,Low,10,"Last modified/publish date is invalid or unreliable: ""invalid-date-format""."
+https://example.com/about,/about,About Us,4,100,stale_content,Medium,50,Content is stale. Last updated 1847 days ago (threshold: 365 days).
+https://example.com/about,/about,About Us,4,100,thin_content,Medium-Low,30,"Content is thin (4 words, threshold: 300 words)."
+https://example.com/about,/about,About Us,4,100,no_headings,Low,20,Page has no headings.
+https://example.com/,/,Home,61,90,duplicate_description,Medium-High,60,"Duplicate meta description found with 1 other page(s): ""Welcome to our site"""
+https://example.com/,/,Home,61,90,thin_content,Medium-Low,30,"Content is thin (61 words, threshold: 300 words)."

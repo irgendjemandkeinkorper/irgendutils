@@ -1,0 +1,10 @@
+{
+  "url": "https://example.com/about",
+  "title": "About Us",
+  "metaDesc": "About our amazing company",
+  "date": "2021-05-10T12:00:00.000Z",
+  "headings": [],
+  "links": [
+    "https://example.com/"
+  ]
+}
