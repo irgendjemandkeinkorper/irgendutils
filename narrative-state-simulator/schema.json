@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NarrativeStory",
+  "description": "Schema for JSON-defined branching narrative graphs.",
+  "type": "object",
+  "required": ["start_scene", "scenes"],
+  "properties": {
+    "start_scene": {
+      "type": "string",
+      "description": "The ID of the starting scene."
+    },
+    "variables": {
+      "type": "object",
+      "description": "Initial state variables and their default values.",
+      "additionalProperties": {
+        "type": ["string", "number", "boolean"]
+      }
+    },
+    "scenes": {
+      "type": "object",
+      "description": "Map of scene ID to scene definition.",
+      "additionalProperties": {
+        "$ref": "#/definitions/Scene"
+      }
+    }
+  },
+  "definitions": {
+    "Scene": {
+      "type": "object",
+      "required": ["text"],
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Descriptive text for the scene."
+        },
+        "terminal": {
+          "type": "boolean",
+          "description": "Flag indicating if this is an intended terminal scene (ending).",
+          "default": false
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Choice"
+          }
+        }
+      }
+    },
+    "Choice": {
+      "type": "object",
+      "required": ["text", "target"],
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The text presented to the player."
+        },
+        "target": {
+          "type": "string",
+          "description": "The ID of the target scene when selected."
+        },
+        "condition": {
+          "$ref": "#/definitions/Condition",
+          "description": "Condition that must be satisfied for this choice to be available."
+        },
+        "mutations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Mutation"
+          },
+          "description": "Mutations applied to the state when this choice is selected."
+        }
+      }
+    },
+    "Condition": {
+      "type": "object",
+      "properties": {
+        "variable": {
+          "type": "string",
+          "description": "The name of the variable to compare."
+        },
+        "operator": {
+          "type": "string",
+          "enum": ["==", "!=", "<", "<=", ">", ">="],
+          "description": "Comparison operator."
+        },
+        "value": {
+          "type": ["string", "number", "boolean"],
+          "description": "The value to compare against."
+        },
+        "and": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Condition"
+          },
+          "description": "Logical AND of conditions."
+        },
+        "or": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Condition"
+          },
+          "description": "Logical OR of conditions."
+        },
+        "not": {
+          "$ref": "#/definitions/Condition",
+          "description": "Logical NOT of condition."
+        }
+      },
+      "additionalProperties": false
+    },
+    "Mutation": {
+      "type": "object",
+      "required": ["variable", "operation", "value"],
+      "properties": {
+        "variable": {
+          "type": "string",
+          "description": "The variable to mutate."
+        },
+        "operation": {
+          "type": "string",
+          "enum": ["set", "add", "sub", "mul", "div"],
+          "description": "The mutation operation."
+        },
+        "value": {
+          "type": ["string", "number", "boolean"],
+          "description": "The value to use in the mutation operation."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

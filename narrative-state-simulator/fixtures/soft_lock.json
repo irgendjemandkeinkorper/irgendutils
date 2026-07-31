@@ -1,0 +1,43 @@
+{
+  "start_scene": "start",
+  "variables": {
+    "has_token": false
+  },
+  "scenes": {
+    "start": {
+      "text": "You stand at a crossroad.",
+      "choices": [
+        {
+          "text": "Go to the safe zone",
+          "target": "safe_zone"
+        },
+        {
+          "text": "Enter the dark trap room",
+          "target": "trap_room"
+        }
+      ]
+    },
+    "safe_zone": {
+      "text": "You are safe. Press exit to win.",
+      "choices": [
+        {
+          "text": "Exit and win",
+          "target": "win"
+        }
+      ]
+    },
+    "trap_room": {
+      "text": "You are trapped! The door is locked and there is no escape.",
+      "choices": [
+        {
+          "text": "Pace around the room",
+          "target": "trap_room"
+        }
+      ]
+    },
+    "win": {
+      "text": "You successfully escaped!",
+      "terminal": true
+    }
+  }
+}
