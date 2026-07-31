@@ -1,0 +1,24 @@
+[
+  {
+    "name": "twentytwentyfour",
+    "status": "active",
+    "update": "none",
+    "version": "1.1",
+    "auto_update": "on"
+  },
+  {
+    "name": "twentytwentytwo",
+    "status": "inactive",
+    "update": "available",
+    "version": "1.2",
+    "update_version": "1.4",
+    "auto_update": "off"
+  },
+  {
+    "name": "legacy-theme",
+    "status": "inactive",
+    "update": "none",
+    "version": "",
+    "auto_update": "off"
+  }
+]
