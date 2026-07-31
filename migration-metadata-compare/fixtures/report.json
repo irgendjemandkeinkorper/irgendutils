@@ -1,0 +1,108 @@
+{
+  "metadata": {
+    "timestamp": "2026-07-31T04:31:38.574579",
+    "before_file": "migration-metadata-compare/fixtures/before_crawl.csv",
+    "after_file": "migration-metadata-compare/fixtures/after_crawl.jsonl",
+    "mapping_file": "migration-metadata-compare/fixtures/url_mapping.csv"
+  },
+  "summary": {
+    "total_pages_before": 6,
+    "total_pages_after": 5,
+    "total_findings": 11,
+    "severity_counts": {
+      "error": 5,
+      "warning": 6,
+      "info": 0
+    }
+  },
+  "findings": [
+    {
+      "url_before": "http://example.com/duplicate",
+      "url_after": null,
+      "field": "duplicate",
+      "before": "2 duplicate rows found",
+      "after": "",
+      "severity": "warning"
+    },
+    {
+      "url_before": "http://example.com/duplicate",
+      "url_after": null,
+      "field": "mapping",
+      "before": "Legacy URL is unmapped and has no matching path in migrated crawl",
+      "after": "",
+      "severity": "warning"
+    },
+    {
+      "url_before": null,
+      "url_after": "https://new-site.com/pricing",
+      "field": "mapping",
+      "before": "",
+      "after": "Migrated URL has no legacy URL mapping to it",
+      "severity": "warning"
+    },
+    {
+      "url_before": "http://example.com/",
+      "url_after": "https://new-site.com/",
+      "field": "title",
+      "before": "Home | Old Site",
+      "after": "Home | New Site",
+      "severity": "error"
+    },
+    {
+      "url_before": "http://example.com/",
+      "url_after": "https://new-site.com/",
+      "field": "description",
+      "before": "Old homepage desc",
+      "after": "New homepage desc",
+      "severity": "warning"
+    },
+    {
+      "url_before": "http://example.com/",
+      "url_after": "https://new-site.com/",
+      "field": "H1",
+      "before": "Welcome to Old Site",
+      "after": "Welcome to New Site",
+      "severity": "warning"
+    },
+    {
+      "url_before": "http://example.com/",
+      "url_after": "https://new-site.com/",
+      "field": "content_fingerprint",
+      "before": "hash_home_old",
+      "after": "hash_home_new",
+      "severity": "warning"
+    },
+    {
+      "url_before": "http://example.com/about",
+      "url_after": "https://new-site.com/about-us",
+      "field": "title",
+      "before": "About Us | Old Site",
+      "after": "About Us | New Site",
+      "severity": "error"
+    },
+    {
+      "url_before": "http://example.com/about",
+      "url_after": "https://new-site.com/about-us",
+      "field": "canonical",
+      "before": "http://example.com/about/",
+      "after": "https://new-site.com/about-us",
+      "severity": "error"
+    },
+    {
+      "url_before": "http://example.com/blog/post-1",
+      "url_after": "https://new-site.com/blog/our-first-post",
+      "field": "canonical",
+      "before": "http://example.com/blog/post-1",
+      "after": "https://new-site.com/blog/our-first-post",
+      "severity": "error"
+    },
+    {
+      "url_before": "http://example.com/contact",
+      "url_after": "https://new-site.com/contact-new",
+      "field": "canonical",
+      "before": "http://example.com/contact",
+      "after": "https://new-site.com/contact-new",
+      "severity": "error"
+    }
+  ]
+}
