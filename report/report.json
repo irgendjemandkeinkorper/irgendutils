@@ -1,0 +1,291 @@
+{
+  "generatedAt": "2026-07-31T03:43:13.469Z",
+  "summary": {
+    "totalPages": 4,
+    "totalFindings": 13,
+    "criticalCount": 1,
+    "highCount": 0,
+    "mediumHighCount": 2,
+    "mediumCount": 2,
+    "mediumLowCount": 4,
+    "lowCount": 4
+  },
+  "pages": [
+    {
+      "url": "https://example.com/blog-post",
+      "relativePath": "/blog-post",
+      "title": "Blog Post Title",
+      "metaDesc": "Welcome to our site",
+      "date": null,
+      "wordCount": 136,
+      "priorityScore": 160,
+      "inboundCount": 1,
+      "findings": [
+        {
+          "type": "duplicate_description",
+          "label": "Duplicate Meta Description",
+          "severity": "Medium-High",
+          "score": 60,
+          "message": "Duplicate meta description found with 1 other page(s): \"Welcome to our site\""
+        },
+        {
+          "type": "multiple_h1s",
+          "label": "Multiple H1s",
+          "severity": "Medium",
+          "score": 40,
+          "message": "Page has multiple H1 headings (2 found)."
+        },
+        {
+          "type": "thin_content",
+          "label": "Thin Content",
+          "severity": "Medium-Low",
+          "score": 30,
+          "message": "Content is thin (136 words, threshold: 300 words)."
+        },
+        {
+          "type": "non_sequential_headings",
+          "label": "Non-Sequential Headings",
+          "severity": "Low",
+          "score": 20,
+          "message": "Heading hierarchy skipped from H2 to H4 (\"H4: Deep Nesting\")."
+        },
+        {
+          "type": "unknown_date",
+          "label": "Unknown Date",
+          "severity": "Low",
+          "score": 10,
+          "message": "Last modified/publish date is unknown."
+        }
+      ]
+    },
+    {
+      "url": "https://example.com/orphan",
+      "relativePath": "/orphan",
+      "title": "Orphan Page",
+      "metaDesc": "An isolated page",
+      "date": "invalid-date-format",
+      "wordCount": 5,
+      "priorityScore": 140,
+      "inboundCount": 0,
+      "findings": [
+        {
+          "type": "orphan_page",
+          "label": "Orphan Page",
+          "severity": "Critical",
+          "score": 100,
+          "message": "Page is an orphan with no internal inbound links."
+        },
+        {
+          "type": "thin_content",
+          "label": "Thin Content",
+          "severity": "Medium-Low",
+          "score": 30,
+          "message": "Content is thin (5 words, threshold: 300 words)."
+        },
+        {
+          "type": "unknown_date",
+          "label": "Unknown Date",
+          "severity": "Low",
+          "score": 10,
+          "message": "Last modified/publish date is invalid or unreliable: \"invalid-date-format\"."
+        }
+      ]
+    },
+    {
+      "url": "https://example.com/about",
+      "relativePath": "/about",
+      "title": "About Us",
+      "metaDesc": "About our amazing company",
+      "date": "2021-05-10T12:00:00.000Z",
+      "wordCount": 4,
+      "priorityScore": 100,
+      "inboundCount": 2,
+      "findings": [
+        {
+          "type": "stale_content",
+          "label": "Stale Content",
+          "severity": "Medium",
+          "score": 50,
+          "message": "Content is stale. Last updated 1847 days ago (threshold: 365 days)."
+        },
+        {
+          "type": "thin_content",
+          "label": "Thin Content",
+          "severity": "Medium-Low",
+          "score": 30,
+          "message": "Content is thin (4 words, threshold: 300 words)."
+        },
+        {
+          "type": "no_headings",
+          "label": "No Headings",
+          "severity": "Low",
+          "score": 20,
+          "message": "Page has no headings."
+        }
+      ]
+    },
+    {
+      "url": "https://example.com/",
+      "relativePath": "/",
+      "title": "Home",
+      "metaDesc": "Welcome to our site",
+      "date": "2026-01-01T00:00:00.000Z",
+      "wordCount": 61,
+      "priorityScore": 90,
+      "inboundCount": 1,
+      "findings": [
+        {
+          "type": "duplicate_description",
+          "label": "Duplicate Meta Description",
+          "severity": "Medium-High",
+          "score": 60,
+          "message": "Duplicate meta description found with 1 other page(s): \"Welcome to our site\""
+        },
+        {
+          "type": "thin_content",
+          "label": "Thin Content",
+          "severity": "Medium-Low",
+          "score": 30,
+          "message": "Content is thin (61 words, threshold: 300 words)."
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "url": "https://example.com/blog-post",
+      "relativePath": "/blog-post",
+      "pageTitle": "Blog Post Title",
+      "type": "duplicate_description",
+      "label": "Duplicate Meta Description",
+      "severity": "Medium-High",
+      "score": 60,
+      "message": "Duplicate meta description found with 1 other page(s): \"Welcome to our site\""
+    },
+    {
+      "url": "https://example.com/blog-post",
+      "relativePath": "/blog-post",
+      "pageTitle": "Blog Post Title",
+      "type": "multiple_h1s",
+      "label": "Multiple H1s",
+      "severity": "Medium",
+      "score": 40,
+      "message": "Page has multiple H1 headings (2 found)."
+    },
+    {
+      "url": "https://example.com/blog-post",
+      "relativePath": "/blog-post",
+      "pageTitle": "Blog Post Title",
+      "type": "thin_content",
+      "label": "Thin Content",
+      "severity": "Medium-Low",
+      "score": 30,
+      "message": "Content is thin (136 words, threshold: 300 words)."
+    },
+    {
+      "url": "https://example.com/blog-post",
+      "relativePath": "/blog-post",
+      "pageTitle": "Blog Post Title",
+      "type": "non_sequential_headings",
+      "label": "Non-Sequential Headings",
+      "severity": "Low",
+      "score": 20,
+      "message": "Heading hierarchy skipped from H2 to H4 (\"H4: Deep Nesting\")."
+    },
+    {
+      "url": "https://example.com/blog-post",
+      "relativePath": "/blog-post",
+      "pageTitle": "Blog Post Title",
+      "type": "unknown_date",
+      "label": "Unknown Date",
+      "severity": "Low",
+      "score": 10,
+      "message": "Last modified/publish date is unknown."
+    },
+    {
+      "url": "https://example.com/orphan",
+      "relativePath": "/orphan",
+      "pageTitle": "Orphan Page",
+      "type": "orphan_page",
+      "label": "Orphan Page",
+      "severity": "Critical",
+      "score": 100,
+      "message": "Page is an orphan with no internal inbound links."
+    },
+    {
+      "url": "https://example.com/orphan",
+      "relativePath": "/orphan",
+      "pageTitle": "Orphan Page",
+      "type": "thin_content",
+      "label": "Thin Content",
+      "severity": "Medium-Low",
+      "score": 30,
+      "message": "Content is thin (5 words, threshold: 300 words)."
+    },
+    {
+      "url": "https://example.com/orphan",
+      "relativePath": "/orphan",
+      "pageTitle": "Orphan Page",
+      "type": "unknown_date",
+      "label": "Unknown Date",
+      "severity": "Low",
+      "score": 10,
+      "message": "Last modified/publish date is invalid or unreliable: \"invalid-date-format\"."
+    },
+    {
+      "url": "https://example.com/about",
+      "relativePath": "/about",
+      "pageTitle": "About Us",
+      "type": "stale_content",
+      "label": "Stale Content",
+      "severity": "Medium",
+      "score": 50,
+      "message": "Content is stale. Last updated 1847 days ago (threshold: 365 days)."
+    },
+    {
+      "url": "https://example.com/about",
+      "relativePath": "/about",
+      "pageTitle": "About Us",
+      "type": "thin_content",
+      "label": "Thin Content",
+      "severity": "Medium-Low",
+      "score": 30,
+      "message": "Content is thin (4 words, threshold: 300 words)."
+    },
+    {
+      "url": "https://example.com/about",
+      "relativePath": "/about",
+      "pageTitle": "About Us",
+      "type": "no_headings",
+      "label": "No Headings",
+      "severity": "Low",
+      "score": 20,
+      "message": "Page has no headings."
+    },
+    {
+      "url": "https://example.com/",
+      "relativePath": "/",
+      "pageTitle": "Home",
+      "type": "duplicate_description",
+      "label": "Duplicate Meta Description",
+      "severity": "Medium-High",
+      "score": 60,
+      "message": "Duplicate meta description found with 1 other page(s): \"Welcome to our site\""
+    },
+    {
+      "url": "https://example.com/",
+      "relativePath": "/",
+      "pageTitle": "Home",
+      "type": "thin_content",
+      "label": "Thin Content",
+      "severity": "Medium-Low",
+      "score": 30,
+      "message": "Content is thin (61 words, threshold: 300 words)."
+    }
+  ],
+  "comparison": {
+    "newFindingsCount": 0,
+    "resolvedFindingsCount": 0,
+    "unchangedFindingsCount": 13
+  }
+}
