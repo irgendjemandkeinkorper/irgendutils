@@ -4,6 +4,37 @@ A toolkit of small, single-purpose utilities for a WordPress + knowledge-managem
 workflow. Each app is self-contained with its own `CLAUDE.md` you can hand to Claude
 Code as the working spec.
 
+## 🚀 Quickstart & Task Runner
+
+The repository root includes a task runner to make all utilities discoverable, diagnosable, testable, and runnable from a single interface.
+
+### Setup
+
+Clone the repository and explore the catalog:
+```bash
+# Display the master utility catalog
+npm run list
+
+# Run diagnostics to check missing dependencies, .env files, config templates, and global CLIs
+npm run doctor
+
+# Execute a utility with arguments forwarded directly
+npm run run image-convert -- --help
+npm run run post-deploy-smoke-test -- --help
+
+# Run tests across all packages, returning proper aggregate exit codes
+npm run test
+```
+
+### Standalone Operation
+
+Every utility remains fully independent. You can also run commands within each individual utility directory:
+```bash
+cd image-convert
+npm install
+npm test
+```
+
 ## Shared standards (baked into every CLAUDE.md)
 - **WP-native first:** WP-CLI + PHP for WordPress internals; Node only where a
   JS-only tool wins (Playwright, HTML parsing).
