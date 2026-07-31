@@ -1,0 +1,135 @@
+{
+  "version": "v1",
+  "data": {
+    "url:https://good.example.com/": {
+      "timestamp": 1785469308362,
+      "value": {
+        "url": "https://good.example.com/",
+        "status": {
+          "status": 200,
+          "redirectChain": []
+        }
+      }
+    },
+    "url:https://good.example.com/about": {
+      "timestamp": 1785469308363,
+      "value": {
+        "url": "https://good.example.com/about",
+        "status": {
+          "status": 200,
+          "redirectChain": []
+        }
+      }
+    },
+    "url:https://good.example.com/logo.png": {
+      "timestamp": 1785469308363,
+      "value": {
+        "url": "https://good.example.com/logo.png",
+        "status": {
+          "status": 200,
+          "redirectChain": []
+        }
+      }
+    },
+    "url:https://good.example.com/style.css": {
+      "timestamp": 1785469308364,
+      "value": {
+        "url": "https://good.example.com/style.css",
+        "status": {
+          "status": 200,
+          "redirectChain": []
+        }
+      }
+    },
+    "url:https://broken.example.com/": {
+      "timestamp": 1785469308428,
+      "value": {
+        "url": "https://broken.example.com/",
+        "status": {
+          "status": 200,
+          "redirectChain": []
+        }
+      }
+    },
+    "url:https://broken.example.com/about": {
+      "timestamp": 1785469308429,
+      "value": {
+        "url": "https://broken.example.com/about",
+        "status": {
+          "status": 200,
+          "redirectChain": []
+        }
+      }
+    },
+    "url:http://insecure.example.com/x.png": {
+      "timestamp": 1785469308430,
+      "value": {
+        "url": "http://insecure.example.com/x.png",
+        "status": {
+          "status": 200,
+          "redirectChain": []
+        }
+      }
+    },
+    "url:https://broken.example.com/missing": {
+      "timestamp": 1785469308434,
+      "value": {
+        "url": "https://broken.example.com/missing",
+        "status": {
+          "status": 404,
+          "redirectChain": []
+        }
+      }
+    },
+    "url:https://broken.example.com/style.css": {
+      "timestamp": 1785469308434,
+      "value": {
+        "url": "https://broken.example.com/style.css",
+        "status": {
+          "status": 200,
+          "redirectChain": []
+        }
+      }
+    },
+    "url:https://template.example.com/": {
+      "timestamp": 1785469308520,
+      "value": {
+        "url": "https://template.example.com/",
+        "status": {
+          "status": 200,
+          "redirectChain": []
+        }
+      }
+    },
+    "url:https://template.example.com/about": {
+      "timestamp": 1785469308521,
+      "value": {
+        "url": "https://template.example.com/about",
+        "status": {
+          "status": 200,
+          "redirectChain": []
+        }
+      }
+    },
+    "url:https://template.example.com/logo.png": {
+      "timestamp": 1785469308521,
+      "value": {
+        "url": "https://template.example.com/logo.png",
+        "status": {
+          "status": 200,
+          "redirectChain": []
+        }
+      }
+    },
+    "url:https://template.example.com/style.css": {
+      "timestamp": 1785469308522,
+      "value": {
+        "url": "https://template.example.com/style.css",
+        "status": {
+          "status": 200,
+          "redirectChain": []
+        }
+      }
+    }
+  }
+}
