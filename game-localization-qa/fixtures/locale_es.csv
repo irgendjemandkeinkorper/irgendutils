@@ -1,0 +1,8 @@
+id,text
+TXT_MENU_START,Comenzar juego
+TXT_MENU_QUIT,Salir
+TXT_INTRO_SPEECH,"¡Hola, viajero! Bienvenido a {world_nam}. Por favor, siéntate junto al fuego.
+¡Disfruta tu estancia!"
+TXT_DIALOGUE_QUEST,Debes encontrar la <b>Espada de Plata para derrotar a la bestia. ¿Aceptas?
+TXT_REWARD_GOLD,Recibiste %d oro y %d plata monedas.
+TXT_DUPLICATE_KEY_TEST,Esta es una clave duplicada.
