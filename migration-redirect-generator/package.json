@@ -1,0 +1,30 @@
+{
+  "name": "@irgendutils/migration-redirect-generator",
+  "version": "1.0.0",
+  "description": "Generate and validate reviewable redirect maps from migration crawl manifests before launch.",
+  "type": "module",
+  "bin": {
+    "redirect-gen": "./src/cli.js"
+  },
+  "scripts": {
+    "dev": "node src/cli.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "redirect",
+    "sitemap",
+    "migration",
+    "crawl",
+    "manifest",
+    "apache",
+    "nginx"
+  ],
+  "author": "irgendjemandkeinkorper",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "commander": "^11.1.0"
+  }
+}
