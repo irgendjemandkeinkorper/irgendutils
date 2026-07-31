@@ -1,0 +1,41 @@
+{
+  "ignore_rules": {
+    "global": {
+      "ignored_ids": ["TXT_DUPLICATE_KEY_TEST"],
+      "ignored_checks": []
+    },
+    "locales": {
+      "fr": {
+        "ignored_ids": ["TXT_MENU_OPTIONS"],
+        "ignored_checks": ["tag_imbalance"]
+      },
+      "de": {
+        "ignored_ids": [],
+        "ignored_checks": []
+      },
+      "es": {
+        "ignored_ids": [],
+        "ignored_checks": ["placeholder_drift"]
+      }
+    }
+  },
+  "expansion_thresholds": {
+    "short": {
+      "max_length": 15,
+      "multiplier": 2.5
+    },
+    "medium": {
+      "max_length": 50,
+      "multiplier": 1.8
+    },
+    "long": {
+      "max_length": null,
+      "multiplier": 1.4
+    }
+  },
+  "placeholder_patterns": [
+    "\\{[a-zA-Z_0-9]+\\}",
+    "%[dsf]"
+  ],
+  "min_untranslated_length": 5
+}

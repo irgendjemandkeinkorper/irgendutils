@@ -1,0 +1,33 @@
+# Canonical translation file
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Menu start option
+msgid "TXT_MENU_START"
+msgstr "Start Game"
+
+#. Menu options
+msgid "TXT_MENU_OPTIONS"
+msgstr "Options"
+
+#. Menu quit option
+msgid "TXT_MENU_QUIT"
+msgstr "Quit"
+
+#. Intro text
+msgid "TXT_INTRO_SPEECH"
+msgstr ""
+"Hello, traveler! Welcome to {world_name}. Please, sit by the fire.\n"
+"Enjoy your stay!"
+
+msgid "TXT_DIALOGUE_QUEST"
+msgstr "You must find the <b>Silver Sword</b> to defeat the beast. Do you accept?"
+
+msgid "TXT_REWARD_GOLD"
+msgstr "You received %d gold and %d silver coins."
+
+msgid "TXT_DUPLICATE_KEY_TEST"
+msgstr "This is a duplicate canonical string."

@@ -1,0 +1,9 @@
+{
+  "TXT_MENU_START": "Commencer le jeu",
+  "TXT_MENU_QUIT": "Quitter",
+  "TXT_INTRO_SPEECH": "Bonjour, voyageur ! Bienvenue à {world_name}. S'il vous plaît, asseyez-vous près du feu.\nProfitez de votre séjour !",
+  "TXT_DIALOGUE_QUEST": "Vous devez trouver l'<b>Épée d'argent</b> pour vaincre la bête. Acceptez-vous ?",
+  "TXT_REWARD_GOLD": "Vous avez reçu %d pièces d'or et %s pièces d'argent.",
+  "TXT_EXTRA_KEY_FR": "Cette clé n'existe pas dans le catalogue canonique.",
+  "TXT_DUPLICATE_KEY_TEST": "Ceci est une clé en double."
+}
