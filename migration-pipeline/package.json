@@ -1,0 +1,25 @@
+{
+  "name": "@irgendutils/migration-pipeline",
+  "version": "1.0.0",
+  "description": "End-to-End Site Migration Pipeline Orchestrator for site-migration-scraper, html-to-gutenberg, obsidian-vault-forge, wp-subdomain-spinup, wp-qa-playwright, and prelaunch-auditor.",
+  "type": "module",
+  "bin": {
+    "pipeline": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "wordpress",
+    "migration",
+    "orchestrator",
+    "automation",
+    "pipeline"
+  ],
+  "author": "irgendjemandkeinkorper",
+  "license": "MIT"
+}

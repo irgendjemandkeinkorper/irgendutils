@@ -1,0 +1,28 @@
+{
+  "urls": [
+    "/",
+    "/about"
+  ],
+  "link_graph": {
+    "/": [
+      "/about"
+    ],
+    "/about": [
+      "/"
+    ]
+  },
+  "images": [
+    {
+      "src": "https://example.com/logo.png",
+      "alt": "Logo",
+      "pages": [
+        "/",
+        "/about"
+      ]
+    }
+  ],
+  "redirects": {
+    "/old-home": "/",
+    "/old-about": "/about"
+  }
+}

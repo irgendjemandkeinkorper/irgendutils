@@ -1,0 +1,8 @@
+wp:
+  mode: rest
+  base_url: "https://{sub}.example.com"
+media:
+  mode: link
+  base: "https://old.example.com"
+convert:
+  strict: false

@@ -1,0 +1,16 @@
+template_url: "https://template.example.com/"
+targets: ["https://good.example.com/"]
+viewports: [360, 1280]
+thresholds:
+  pixel_diff_pct: 0.15
+  max_broken_links: 0
+checks: [visual, links, console, headings, responsive, wp_hygiene]
+auth:
+  user: automation
+  app_password_env: WP_APP_PASSWORD
+mask_selectors: []
+consent_selector:
+baseline_dir: ./out/offline-redesign/qa-baseline
+report_dir: ./out/offline-redesign/qa-report
+adapter: playwright
+fixture:
