@@ -26,6 +26,7 @@ Options:
       --no-color        disable ANSI colors
       --adapter <file>  advanced: JS module providing the fetch adapter
                         (used by tests to run against fixtures, offline)
+      --json            output standardized contract JSON envelope to stdout
   -h, --help            show this help
 
 Config (smoke.yml): base_url, timeout_ms, soft_budget_ms, checks[], authed[],
@@ -46,6 +47,7 @@ async function main(argv) {
       out: { type: 'string', short: 'o', default: 'results.json' },
       'no-color': { type: 'boolean', default: false },
       adapter: { type: 'string' },
+      json: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
   });
@@ -94,17 +96,30 @@ async function main(argv) {
     ? await loadCustomAdapter(values.adapter)
     : lazyLiveAdapter();
 
+  const startTime = new Date().toISOString();
   const run = await runSmoke(config, adapter, {
     failFast: values['fail-fast'] || undefined,
     env,
   });
 
   const color = !values['no-color'] && process.stdout.isTTY && !process.env.NO_COLOR;
-  console.log(formatTable(run, { color }));
+  const table = formatTable(run, { color });
 
   const outPath = resolve(values.out);
-  writeFileSync(outPath, JSON.stringify(buildResultsJson(run), null, 2) + '\n');
-  console.log(`\nresults written to ${outPath}`);
+  const jsonEnvelope = buildResultsJson(run, { outPath, env, startTime });
+
+  if (values.json) {
+    // Human-readable messages to stderr
+    console.error(table);
+    console.error(`\nresults written to ${outPath}`);
+    // Contract envelope directly to stdout
+    console.log(JSON.stringify(jsonEnvelope, null, 2));
+  } else {
+    // Normal output to stdout
+    console.log(table);
+    writeFileSync(outPath, JSON.stringify(jsonEnvelope, null, 2) + '\n');
+    console.log(`\nresults written to ${outPath}`);
+  }
 
   return run.ok ? 0 : 1;
 }

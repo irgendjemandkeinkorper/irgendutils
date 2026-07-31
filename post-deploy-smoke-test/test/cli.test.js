@@ -49,9 +49,9 @@ test('smoke run: healthy site exits 0 and writes passing results.json', () => {
   });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /PASS/);
-  assert.equal(r.results.ok, true);
+  assert.equal(r.results.status, 'success');
   assert.equal(r.results.summary.failed, 0);
-  assert.equal(r.results.checks.length, 6);
+  assert.equal(r.results.results.length, 6);
 });
 
 test('smoke run: broken site exits non-zero with clear reasons in output', () => {
@@ -64,7 +64,7 @@ test('smoke run: broken site exits non-zero with clear reasons in output', () =>
   assert.match(r.stdout, /expected status 200, got 500/);
   assert.match(r.stdout, /does not contain "Log In"/);
   assert.match(r.stdout, /suspiciously tiny body/);
-  assert.equal(r.results.ok, false);
+  assert.equal(r.results.status, 'failure');
   assert.ok(r.results.summary.failed >= 5);
 });
 
@@ -74,7 +74,7 @@ test('smoke run --fail-fast stops after the first failure', () => {
     env: HEALTHY_ENV,
   });
   assert.equal(r.status, 1);
-  assert.equal(r.results.checks.length, 1);
+  assert.equal(r.results.results.length, 1);
 });
 
 test('smoke run --url overrides the target', () => {
@@ -83,8 +83,7 @@ test('smoke run --url overrides the target', () => {
     { responses: 'responses-healthy.json', env: HEALTHY_ENV },
   );
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.equal(r.results.target, 'https://staging.acme.example.com');
-  assert.ok(r.results.checks[0].url.startsWith('https://staging.acme.example.com/'));
+  assert.ok(r.results.results[0].url.startsWith('https://staging.acme.example.com/'));
 });
 
 test('a hanging URL cannot stall the pipeline: bounded run, non-zero exit', () => {
