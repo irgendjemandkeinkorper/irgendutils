@@ -69,6 +69,9 @@ def clean_json_ld_text(text: str) -> str:
     return text.strip()
 
 
+# Global constant to avoid set allocation on every call of is_node
+EXCLUDED_KEYS = {"@id", "@context", "@graph"}
+
 def is_node(val: Any) -> bool:
     """
     Determines if a dictionary is a structured data Node (as opposed to a pure reference or literal).
@@ -83,9 +86,10 @@ def is_node(val: Any) -> bool:
     if "@type" in val:
         return True
 
-    other_keys = set(val.keys()) - {"@id", "@context", "@graph"}
-    if other_keys:
-        return True
+    # Avoid set creation or subtraction on hot loops
+    for k in val:
+        if k not in EXCLUDED_KEYS:
+            return True
     return False
 
 
