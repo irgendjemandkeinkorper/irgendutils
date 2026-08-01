@@ -1,0 +1,5 @@
+[Unit]
+Description=Unusual Frequent Service
+
+[Service]
+ExecStart=/usr/local/bin/frequent.sh

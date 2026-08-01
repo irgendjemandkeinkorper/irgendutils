@@ -1,0 +1,41 @@
+{
+  "start_scene": "start",
+  "variables": {
+    "counter": 0
+  },
+  "scenes": {
+    "start": {
+      "text": "Press start to enter the infinite machine.",
+      "choices": [
+        {
+          "text": "Enter machine",
+          "target": "loop"
+        }
+      ]
+    },
+    "loop": {
+      "text": "The machine hums.",
+      "choices": [
+        {
+          "text": "Turn lever",
+          "target": "loop",
+          "mutations": [
+            {
+              "variable": "counter",
+              "operation": "add",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "text": "Escape",
+          "target": "exit"
+        }
+      ]
+    },
+    "exit": {
+      "text": "You got out.",
+      "terminal": true
+    }
+  }
+}

@@ -24,6 +24,11 @@ const HEADINGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
 const STOP_TR = new Set(['table', 'thead', 'tbody', 'tfoot']);
 const STOP_TD_TH = new Set(['table', 'thead', 'tbody', 'tfoot', 'tr']);
 
+// Sticky regexes to avoid slicing strings in the hot loop
+const CLOSE_TAG_RE = /<\/\s*([a-zA-Z][a-zA-Z0-9-]*)[^>]*>/y;
+const OPEN_TAG_RE = /<([a-zA-Z][a-zA-Z0-9-]*)/y;
+const ATTR_RE = /([^\s=/>]+)(\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]*)))?/y;
+
 export function parseHTML(input) {
   const root = { type: 'root', tag: '#root', children: [] };
   const stack = [root];
@@ -62,7 +67,8 @@ export function parseHTML(input) {
 
     // Closing tag
     if (input.startsWith('</', i)) {
-      const m = /^<\/\s*([a-zA-Z][a-zA-Z0-9-]*)[^>]*>/.exec(input.slice(i));
+      CLOSE_TAG_RE.lastIndex = i;
+      const m = CLOSE_TAG_RE.exec(input);
       if (!m) {
         pushText('<');
         i += 1;
@@ -80,7 +86,8 @@ export function parseHTML(input) {
     }
 
     // Opening tag
-    const m = /^<([a-zA-Z][a-zA-Z0-9-]*)/.exec(input.slice(i));
+    OPEN_TAG_RE.lastIndex = i;
+    const m = OPEN_TAG_RE.exec(input);
     if (!m) {
       pushText('<');
       i += 1;
@@ -94,7 +101,8 @@ export function parseHTML(input) {
       while (j < input.length && /\s/.test(input[j])) j++;
       if (input[j] === '>') { j++; break; }
       if (input[j] === '/') { selfClose = true; j++; continue; }
-      const am = /^([^\s=/>]+)(\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]*)))?/.exec(input.slice(j));
+      ATTR_RE.lastIndex = j;
+      const am = ATTR_RE.exec(input);
       if (!am || am[0] === '') { j++; continue; }
       const name = am[1].toLowerCase();
       attrs[name] = am[2] != null ? (am[3] ?? am[4] ?? am[5] ?? '') : '';
@@ -130,13 +138,13 @@ export function parseHTML(input) {
     if (VOID_TAGS.has(tag) || selfClose) continue;
 
     if (RAW_TEXT_TAGS.has(tag)) {
-      const closeRe = new RegExp(`</${tag}\\s*>`, 'i');
-      const rest = input.slice(i);
-      const cm = closeRe.exec(rest);
-      const rawEnd = cm ? cm.index : rest.length;
-      const raw = rest.slice(0, rawEnd);
+      const closeRe = new RegExp(`</${tag}\\s*>`, 'gi');
+      closeRe.lastIndex = i;
+      const cm = closeRe.exec(input);
+      const rawEnd = cm ? cm.index : input.length;
+      const raw = input.slice(i, rawEnd);
       if (raw) node.children.push({ type: 'text', text: raw });
-      i += rawEnd + (cm ? cm[0].length : 0);
+      i = rawEnd + (cm ? cm[0].length : 0);
       continue;
     }
 

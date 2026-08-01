@@ -1,0 +1,828 @@
+import json
+import html
+import sys
+from datetime import datetime
+from typing import List, Dict, Any, Optional
+from .compare import Finding
+
+# ANSI Color Codes for Terminal Reporting
+COLORS = {
+    "red": "\033[91m",
+    "green": "\033[92m",
+    "yellow": "\033[93m",
+    "blue": "\033[94m",
+    "magenta": "\033[95m",
+    "cyan": "\033[96m",
+    "bold": "\033[1m",
+    "reset": "\033[0m"
+}
+
+def clean_colors(text: str) -> str:
+    """Strip ANSI color codes."""
+    for col in COLORS.values():
+        text = text.replace(col, "")
+    return text
+
+class TerminalReporter:
+    def __init__(self, use_color: bool = True):
+        self.use_color = use_color and sys.stdout.isatty()
+
+    def c(self, color_name: str, text: str) -> str:
+        if self.use_color and color_name in COLORS:
+            return f"{COLORS[color_name]}{text}{COLORS['reset']}"
+        return text
+
+    def generate(self, findings: List[Finding], before_file: str, after_file: str, summary: Dict[str, Any]) -> str:
+        lines = []
+        lines.append(self.c("bold", "=== MIGRATION METADATA COMPARISON REPORT ==="))
+        lines.append(f"Timestamp:   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(f"Before File: {before_file}")
+        lines.append(f"After File:  {after_file}")
+        lines.append("")
+
+        # Stats summary
+        lines.append(self.c("bold", "--- Summary ---"))
+        lines.append(f"Pages in Before Crawl: {summary['total_pages_before']}")
+        lines.append(f"Pages in After Crawl:  {summary['total_pages_after']}")
+        lines.append(f"Total Findings:        {summary['total_findings']}")
+
+        counts = summary.get("severity_counts", {})
+        err_str = self.c("red", f"Errors: {counts.get('error', 0)}")
+        warn_str = self.c("yellow", f"Warnings: {counts.get('warning', 0)}")
+        info_str = self.c("blue", f"Infos: {counts.get('info', 0)}")
+        lines.append(f"Breakdown:             {err_str} | {warn_str} | {info_str}")
+        lines.append("")
+
+        # Filter out ignored findings
+        active_findings = [f for f in findings if f.severity != "ignore"]
+
+        # 1. Group anomalies: duplicates and mapping issues
+        anomalies = [f for f in active_findings if f.field in ("duplicate", "mapping")]
+        page_findings = [f for f in active_findings if f.field not in ("duplicate", "mapping")]
+
+        if anomalies:
+            lines.append(self.c("bold", "--- Crawl & Mapping Anomalies ---"))
+            for f in anomalies:
+                sev_color = "red" if f.severity == "error" else ("yellow" if f.severity == "warning" else "blue")
+                sev_label = self.c(sev_color, f"[{f.severity.upper()}]")
+
+                if f.field == "duplicate":
+                    url = f.url_before or f.url_after
+                    direction = "Before" if f.url_before else "After"
+                    lines.append(f"  {sev_label} Duplicate in {direction}: {self.c('bold', url)}")
+                    lines.append(f"    Details: {f.before or f.after}")
+                elif f.field == "mapping":
+                    if f.url_before and f.url_after:
+                        lines.append(f"  {sev_label} Mapping issue: {self.c('bold', f.url_before)} -> {self.c('bold', f.url_after)}")
+                        lines.append(f"    Legacy:    {f.before}")
+                        lines.append(f"    Migrated:  {f.after}")
+                    elif f.url_before:
+                        lines.append(f"  {sev_label} Unmapped Legacy: {self.c('bold', f.url_before)}")
+                        lines.append(f"    Details: {f.before}")
+                    else:
+                        lines.append(f"  {sev_label} Unmapped Migrated: {self.c('bold', f.url_after)}")
+                        lines.append(f"    Details: {f.after}")
+            lines.append("")
+
+        # 2. Group page findings by mapped pair
+        if page_findings:
+            lines.append(self.c("bold", "--- Page-Level Regressions ---"))
+
+            # Group by before-after pair
+            grouped: Dict[tuple, List[Finding]] = {}
+            for f in page_findings:
+                key = (f.url_before, f.url_after)
+                grouped.setdefault(key, []).append(f)
+
+            for (before_url, after_url), pair_findings in sorted(grouped.items(), key=lambda x: str(x[0][0])):
+                lines.append(self.c("cyan", f"[Page] {before_url} -> {after_url}"))
+                for f in pair_findings:
+                    sev_color = "red" if f.severity == "error" else ("yellow" if f.severity == "warning" else "blue")
+                    sev_label = self.c(sev_color, f"[{f.severity.upper()}]")
+
+                    # Display values cleanly, truncating if they are massive
+                    val_before = f.before
+                    val_after = f.after
+                    if len(val_before) > 80:
+                        val_before = val_before[:77] + "..."
+                    if len(val_after) > 80:
+                        val_after = val_after[:77] + "..."
+
+                    lines.append(f"  {sev_label} {f.field}:")
+                    lines.append(f"    Before: {self.c('bold', val_before or '(none)')}")
+                    lines.append(f"    After:  {self.c('bold', val_after or '(none)')}")
+                lines.append("")
+
+        return "\n".join(lines)
+
+
+class JSONReporter:
+    @staticmethod
+    def generate(
+        findings: List[Finding],
+        before_file: str,
+        after_file: str,
+        mapping_file: Optional[str],
+        summary: Dict[str, Any]
+    ) -> str:
+        data = {
+            "metadata": {
+                "timestamp": datetime.now().isoformat(),
+                "before_file": before_file,
+                "after_file": after_file,
+                "mapping_file": mapping_file
+            },
+            "summary": summary,
+            "findings": [
+                {
+                    "url_before": f.url_before,
+                    "url_after": f.url_after,
+                    "field": f.field,
+                    "before": f.before,
+                    "after": f.after,
+                    "severity": f.severity
+                }
+                for f in findings
+            ]
+        }
+        return json.dumps(data, indent=2, ensure_ascii=False)
+
+
+class HTMLReporter:
+    @staticmethod
+    def generate(
+        findings: List[Finding],
+        before_file: str,
+        after_file: str,
+        mapping_file: Optional[str],
+        summary: Dict[str, Any]
+    ) -> str:
+        # Build JS data structures
+        findings_json_list = []
+        for f in findings:
+            findings_json_list.append({
+                "url_before": f.url_before or "",
+                "url_after": f.url_after or "",
+                "field": f.field,
+                "before": f.before,
+                "after": f.after,
+                "severity": f.severity
+            })
+
+        js_data = {
+            "metadata": {
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "before_file": html.escape(before_file),
+                "after_file": html.escape(after_file),
+                "mapping_file": html.escape(mapping_file or "None")
+            },
+            "summary": summary,
+            "findings": findings_json_list
+        }
+
+        # Beautiful inline CSS with modern, professional design
+        html_template = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migration Metadata Comparison Report</title>
+    <style>
+        :root {
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+
+            --severity-error: #ef4444;
+            --severity-error-bg: #fef2f2;
+            --severity-error-border: #fecaca;
+
+            --severity-warning: #f59e0b;
+            --severity-warning-bg: #fffbeb;
+            --severity-warning-border: #fef3c7;
+
+            --severity-info: #3b82f6;
+            --severity-info-bg: #eff6ff;
+            --severity-info-border: #bfdbfe;
+
+            --severity-ignore: #94a3b8;
+            --severity-ignore-bg: #f1f5f9;
+            --severity-ignore-border: #cbd5e1;
+
+            --diff-before: #fee2e2;
+            --diff-after: #dcfce7;
+            --diff-text-before: #991b1b;
+            --diff-text-after: #166534;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            line-height: 1.5;
+        }
+
+        header {
+            background-color: #0f172a;
+            color: white;
+            padding: 2rem 2rem;
+            border-bottom: 4px solid var(--primary);
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        h1 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.875rem;
+            font-weight: 700;
+        }
+
+        .meta-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        .meta-list li {
+            margin-bottom: 0.25rem;
+        }
+
+        .meta-list strong {
+            color: #f1f5f9;
+        }
+
+        main {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kpi-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .kpi-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        .kpi-card.error { border-left: 4px solid var(--severity-error); }
+        .kpi-card.warning { border-left: 4px solid var(--severity-warning); }
+        .kpi-card.info { border-left: 4px solid var(--severity-info); }
+        .kpi-card.total { border-left: 4px solid var(--primary); }
+
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        .controls-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin-bottom: 1.5rem;
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: white;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            border-color: var(--text-muted);
+        }
+
+        .btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            max-width: 400px;
+            min-width: 250px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            box-sizing: border-box;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        .finding-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .finding-header {
+            padding: 1rem 1.25rem;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .finding-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+            word-break: break-all;
+        }
+
+        .finding-badge-container {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+            text-transform: uppercase;
+        }
+
+        .badge.error {
+            background-color: var(--severity-error-bg);
+            color: var(--severity-error);
+            border: 1px solid var(--severity-error-border);
+        }
+
+        .badge.warning {
+            background-color: var(--severity-warning-bg);
+            color: var(--severity-warning);
+            border: 1px solid var(--severity-warning-border);
+        }
+
+        .badge.info {
+            background-color: var(--severity-info-bg);
+            color: var(--severity-info);
+            border: 1px solid var(--severity-info-border);
+        }
+
+        .badge.field {
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
+
+        .finding-body {
+            padding: 1.25rem;
+        }
+
+        .compare-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .compare-table th {
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+            width: 50%;
+        }
+
+        .compare-table td {
+            padding: 0.75rem;
+            vertical-align: top;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        .val-box {
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.825rem;
+            min-height: 1.5rem;
+        }
+
+        .val-box.before {
+            background-color: var(--diff-before);
+            color: var(--diff-text-before);
+        }
+
+        .val-box.after {
+            background-color: var(--diff-after);
+            color: var(--diff-text-after);
+        }
+
+        .val-box.empty {
+            background-color: #f1f5f9;
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        .no-results {
+            padding: 3rem;
+            text-align: center;
+            color: var(--text-muted);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+        }
+
+        /* Group headers */
+        .group-header {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 2rem 0 1rem 0;
+            border-bottom: 2px solid #cbd5e1;
+            padding-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-container">
+            <div>
+                <h1>Migration Metadata Comparison Report</h1>
+                <p style="margin: 0; color: #94a3b8; font-size: 0.95rem;">
+                    Identified regressions and changes between pre-migration and post-migration page crawls.
+                </p>
+            </div>
+            <div>
+                <ul class="meta-list">
+                    <li><strong>Timestamp:</strong> <span id="timestamp"></span></li>
+                    <li><strong>Before File:</strong> <span id="before-file"></span></li>
+                    <li><strong>After File:</strong> <span id="after-file"></span></li>
+                    <li><strong>Mapping File:</strong> <span id="mapping-file"></span></li>
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="summary-grid">
+            <div class="kpi-card total">
+                <span class="kpi-label">Pages Legacy / Migrated</span>
+                <span class="kpi-value" id="kpi-pages-count">- / -</span>
+            </div>
+            <div class="kpi-card total">
+                <span class="kpi-label">Total Findings</span>
+                <span class="kpi-value" id="kpi-findings-count">-</span>
+            </div>
+            <div class="kpi-card error">
+                <span class="kpi-label">Errors</span>
+                <span class="kpi-value" id="kpi-errors-count" style="color: var(--severity-error)">0</span>
+            </div>
+            <div class="kpi-card warning">
+                <span class="kpi-label">Warnings</span>
+                <span class="kpi-value" id="kpi-warnings-count" style="color: var(--severity-warning)">0</span>
+            </div>
+            <div class="kpi-card info">
+                <span class="kpi-label">Infos</span>
+                <span class="kpi-value" id="kpi-infos-count" style="color: var(--severity-info)">0</span>
+            </div>
+        </div>
+
+        <div class="controls-card">
+            <div class="controls-row">
+                <div class="filter-buttons">
+                    <button class="btn active" onclick="filterSeverity('all')" id="btn-all">All</button>
+                    <button class="btn" onclick="filterSeverity('error')" id="btn-error" style="color: var(--severity-error)">Errors</button>
+                    <button class="btn" onclick="filterSeverity('warning')" id="btn-warning" style="color: var(--severity-warning)">Warnings</button>
+                    <button class="btn" onclick="filterSeverity('info')" id="btn-info" style="color: var(--severity-info)">Infos</button>
+                    <button class="btn" onclick="filterSeverity('anomaly')" id="btn-anomaly" style="color: var(--text-main)">Anomalies</button>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="search-input" class="search-input" placeholder="Search by URL..." oninput="handleSearch()">
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-layout">
+            <div id="findings-container">
+                <!-- Findings rendered here dynamically -->
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Inject data from Python backend safely
+        const RUN_DATA = %s;
+
+        let activeSeverity = 'all';
+        let searchQuery = '';
+
+        document.getElementById('timestamp').textContent = RUN_DATA.metadata.timestamp;
+        document.getElementById('before-file').textContent = RUN_DATA.metadata.before_file;
+        document.getElementById('after-file').textContent = RUN_DATA.metadata.after_file;
+        document.getElementById('mapping-file').textContent = RUN_DATA.metadata.mapping_file;
+
+        document.getElementById('kpi-pages-count').textContent = `${RUN_DATA.summary.total_pages_before} / ${RUN_DATA.summary.total_pages_after}`;
+        document.getElementById('kpi-findings-count').textContent = RUN_DATA.summary.total_findings;
+        document.getElementById('kpi-errors-count').textContent = RUN_DATA.summary.severity_counts.error || 0;
+        document.getElementById('kpi-warnings-count').textContent = RUN_DATA.summary.severity_counts.warning || 0;
+        document.getElementById('kpi-infos-count').textContent = RUN_DATA.summary.severity_counts.info || 0;
+
+        function filterSeverity(sev) {
+            document.querySelectorAll('.filter-buttons .btn').forEach(btn => btn.classList.remove('active'));
+            activeSeverity = sev;
+            const btnMap = {
+                'all': 'btn-all',
+                'error': 'btn-error',
+                'warning': 'btn-warning',
+                'info': 'btn-info',
+                'anomaly': 'btn-anomaly'
+            };
+            document.getElementById(btnMap[sev]).classList.add('active');
+            renderFindings();
+        }
+
+        function handleSearch() {
+            searchQuery = document.getElementById('search-input').value.toLowerCase().strip();
+            renderFindings();
+        }
+
+        // Simple polyfill for strip
+        if (!String.prototype.strip) {
+            String.prototype.strip = function() { return this.trim(); };
+        }
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function renderFindings() {
+            const container = document.getElementById('findings-container');
+            container.innerHTML = '';
+
+            // Filter findings first
+            const filtered = RUN_DATA.findings.filter(f => {
+                // 1. Filter by severity
+                if (activeSeverity !== 'all') {
+                    if (activeSeverity === 'anomaly') {
+                        if (f.field !== 'duplicate' && f.field !== 'mapping') return false;
+                    } else {
+                        if (f.severity !== activeSeverity) return false;
+                    }
+                }
+
+                // 2. Filter by search query
+                if (searchQuery) {
+                    const matchBefore = f.url_before.toLowerCase().includes(searchQuery);
+                    const matchAfter = f.url_after.toLowerCase().includes(searchQuery);
+                    const matchBeforeVal = f.before.toLowerCase().includes(searchQuery);
+                    const matchAfterVal = f.after.toLowerCase().includes(searchQuery);
+                    if (!matchBefore && !matchAfter && !matchBeforeVal && !matchAfterVal) return false;
+                }
+
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="no-results"><h3>No findings match your criteria.</h3></div>';
+                return;
+            }
+
+            // Separate into Anomalies and Page-level findings
+            const anomalies = filtered.filter(f => f.field === 'duplicate' || f.field === 'mapping');
+            const pageRegressions = filtered.filter(f => f.field !== 'duplicate' && f.field !== 'mapping');
+
+            // Render Anomalies first if any exist
+            if (anomalies.length > 0) {
+                const groupTitle = document.createElement('div');
+                groupTitle.className = 'group-header';
+                groupTitle.textContent = 'Crawl & Mapping Anomalies';
+                container.appendChild(groupTitle);
+
+                anomalies.forEach(f => {
+                    const sec = document.createElement('div');
+                    sec.className = 'finding-section';
+
+                    let titleText = '';
+                    if (f.field === 'duplicate') {
+                        titleText = `Duplicate Crawl Rows: ${f.url_before || f.url_after}`;
+                    } else {
+                        if (f.url_before && f.url_after) {
+                            titleText = `Mapping Error: ${f.url_before} -> ${f.url_after}`;
+                        } else if (f.url_before) {
+                            titleText = `Unmapped Legacy URL: ${f.url_before}`;
+                        } else {
+                            titleText = `Unmapped Migrated URL: ${f.url_after}`;
+                        }
+                    }
+
+                    sec.innerHTML = `
+                        <div class="finding-header">
+                            <span class="finding-title">${escapeHtml(titleText)}</span>
+                            <div class="finding-badge-container">
+                                <span class="badge ${f.severity}">${escapeHtml(f.severity)}</span>
+                                <span class="badge field">${escapeHtml(f.field)}</span>
+                            </div>
+                        </div>
+                        <div class="finding-body">
+                            <table class="compare-table">
+                                <thead>
+                                    <tr>
+                                        <th>Legacy Crawl Context</th>
+                                        <th>Migrated Crawl Context</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <div class="val-box before ${!f.before ? 'empty' : ''}">${escapeHtml(f.before || '(no legacy record)')}</div>
+                                        </td>
+                                        <td>
+                                            <div class="val-box after ${!f.after ? 'empty' : ''}">${escapeHtml(f.after || '(no migrated record)')}</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    container.appendChild(sec);
+                });
+            }
+
+            // Render Page Regressions grouped by URL pair
+            if (pageRegressions.length > 0) {
+                const groupTitle = document.createElement('div');
+                groupTitle.className = 'group-header';
+                groupTitle.textContent = 'Page-Level Metadata Regressions';
+                container.appendChild(groupTitle);
+
+                // Group page-level regressions by pair
+                const grouped = {};
+                pageRegressions.forEach(f => {
+                    const key = `${f.url_before} -> ${f.url_after}`;
+                    if (!grouped[key]) {
+                        grouped[key] = {
+                            url_before: f.url_before,
+                            url_after: f.url_after,
+                            findings: []
+                        };
+                    }
+                    grouped[key].findings.push(f);
+                });
+
+                Object.values(grouped).forEach(group => {
+                    const sec = document.createElement('div');
+                    sec.className = 'finding-section';
+
+                    const header = document.createElement('div');
+                    header.className = 'finding-header';
+                    header.style.backgroundColor = '#f1f5f9';
+                    header.innerHTML = `
+                        <span class="finding-title" style="font-weight: 700; color: #1e293b;">
+                            ${escapeHtml(group.url_before)} <span style="color: var(--text-muted); font-weight: 400;">&rarr;</span> ${escapeHtml(group.url_after)}
+                        </span>
+                        <div class="finding-badge-container">
+                            <span class="badge field">${group.findings.length} field mismatch(es)</span>
+                        </div>
+                    `;
+                    sec.appendChild(header);
+
+                    const body = document.createElement('div');
+                    body.className = 'finding-body';
+
+                    group.findings.forEach(f => {
+                        const subRow = document.createElement('div');
+                        subRow.style.marginBottom = '1.25rem';
+                        subRow.style.borderBottom = '1px dashed var(--border)';
+                        subRow.style.paddingBottom = '1rem';
+
+                        subRow.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <strong style="font-size: 0.9rem; text-transform: capitalize; color: #334155;">Field: ${escapeHtml(f.field)}</strong>
+                                <span class="badge ${f.severity}">${escapeHtml(f.severity)}</span>
+                            </div>
+                            <table class="compare-table">
+                                <thead>
+                                    <tr>
+                                        <th>Legacy Value</th>
+                                        <th>Migrated Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <div class="val-box before ${!f.before ? 'empty' : ''}">${escapeHtml(f.before || '(empty)')}</div>
+                                        </td>
+                                        <td>
+                                            <div class="val-box after ${!f.after ? 'empty' : ''}">${escapeHtml(f.after || '(empty)')}</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        `;
+                        body.appendChild(subRow);
+                    });
+
+                    // Remove dashed border on the last item
+                    if (body.lastElementChild) {
+                        body.lastElementChild.style.borderBottom = 'none';
+                        body.lastElementChild.style.paddingBottom = '0';
+                        body.lastElementChild.style.marginBottom = '0';
+                    }
+
+                    sec.appendChild(body);
+                    container.appendChild(sec);
+                });
+            }
+        }
+
+        // Initial render
+        renderFindings();
+    </script>
+</body>
+</html>
+"""
+        # Inject JSON safely using standard JSON serialization
+        run_data_str = json.dumps(js_data, ensure_ascii=False)
+        return html_template.replace("%s", run_data_str)

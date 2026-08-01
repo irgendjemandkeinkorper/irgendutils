@@ -1,0 +1,86 @@
+{
+  "tool": "@irgendutils/wp-qa-playwright",
+  "generated_at": "2026-07-31T03:37:34.600Z",
+  "template_url": "https://template.example.com/",
+  "checks": [
+    "links"
+  ],
+  "thresholds": {
+    "pixel_diff_pct": 0.15,
+    "max_broken_links": 0
+  },
+  "pass": false,
+  "summary": {
+    "targets": 2,
+    "passed": 1,
+    "failed": 1,
+    "findings": {
+      "error": 2,
+      "warn": 1,
+      "info": 0
+    }
+  },
+  "results": [
+    {
+      "target": "https://good.example.com/",
+      "final_url": "https://good.example.com/",
+      "pass": true,
+      "checks_run": [
+        "links"
+      ],
+      "findings": [],
+      "per_check": {
+        "links": {
+          "total": 4,
+          "broken": 0,
+          "threshold": 0
+        }
+      }
+    },
+    {
+      "target": "https://broken.example.com/",
+      "final_url": "https://broken.example.com/",
+      "pass": false,
+      "checks_run": [
+        "links"
+      ],
+      "findings": [
+        {
+          "check": "links",
+          "severity": "warn",
+          "message": "HTTP 404 for anchor https://broken.example.com/missing",
+          "details": {
+            "url": "https://broken.example.com/missing",
+            "type": "anchor",
+            "status": 404
+          }
+        },
+        {
+          "check": "links",
+          "severity": "error",
+          "message": "Mixed content: image http://insecure.example.com/x.png loaded over http on an https page",
+          "details": {
+            "url": "http://insecure.example.com/x.png",
+            "type": "image"
+          }
+        },
+        {
+          "check": "links",
+          "severity": "error",
+          "message": "1 broken link/asset(s) exceed the max_broken_links threshold of 0",
+          "details": {
+            "broken": 1,
+            "threshold": 0
+          }
+        }
+      ],
+      "per_check": {
+        "links": {
+          "total": 5,
+          "broken": 1,
+          "threshold": 0
+        }
+      }
+    }
+  ]
+}

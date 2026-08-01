@@ -1,0 +1,23 @@
+[
+  {
+    "name": "wp-multisite-user-sync",
+    "status": "network-active",
+    "update": "none",
+    "version": "2.1.0",
+    "auto_update": "on"
+  },
+  {
+    "name": "akismet",
+    "status": "active",
+    "update": "none",
+    "version": "5.3",
+    "auto_update": "off"
+  },
+  {
+    "name": "hello-dolly",
+    "status": "inactive",
+    "update": "none",
+    "version": "1.7.2",
+    "auto_update": "off"
+  }
+]

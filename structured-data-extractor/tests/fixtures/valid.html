@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Valid JSON-LD Test</title>
+    <!-- Single Block JSON-LD -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "@id": "https://example.com/valid",
+        "name": "A Valid Page Example",
+        "description": "This is a valid page with standard JSON-LD structured data."
+    }
+    </script>
+
+    <!-- Block with an Array of objects -->
+    <script type="application/ld+json">
+    [
+        {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "@id": "https://example.com/valid#breadcrumb",
+            "itemListElement": [
+                {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Home",
+                    "item": "https://example.com/"
+                },
+                {
+                    "@type": "ListItem",
+                    "position": 2,
+                    "name": "Valid Page",
+                    "item": "https://example.com/valid"
+                }
+            ]
+        },
+        {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "@id": "https://example.com/org",
+            "name": "Example Org",
+            "logo": "https://example.com/logo.png"
+        }
+    ]
+    </script>
+</head>
+<body>
+    <h1>Testing Valid JSON-LD extraction</h1>
+</body>
+</html>

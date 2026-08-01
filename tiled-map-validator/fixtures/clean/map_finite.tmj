@@ -1,0 +1,96 @@
+{
+  "compressionlevel": -1,
+  "height": 4,
+  "infinite": false,
+  "layers": [
+    {
+      "data": [
+        1, 2, 3, 4,
+        1, 2, 3, 4,
+        1, 2, 3, 4,
+        1, 2, 3, 4
+      ],
+      "height": 4,
+      "id": 1,
+      "name": "ground",
+      "opacity": 1,
+      "type": "tilelayer",
+      "visible": true,
+      "width": 4,
+      "x": 0,
+      "y": 0,
+      "properties": [
+        {
+          "name": "is_walkable",
+          "type": "bool",
+          "value": true
+        }
+      ]
+    },
+    {
+      "draworder": "topdown",
+      "id": 2,
+      "name": "entities",
+      "objects": [
+        {
+          "id": 1,
+          "name": "player_spawn",
+          "type": "spawnpoint",
+          "visible": true,
+          "x": 16,
+          "y": 16,
+          "properties": [
+            {
+              "name": "team",
+              "type": "string",
+              "value": "blue"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "enemy_spawn",
+          "type": "spawnpoint",
+          "visible": true,
+          "x": 32,
+          "y": 32,
+          "properties": [
+            {
+              "name": "team",
+              "type": "string",
+              "value": "red"
+            }
+          ]
+        }
+      ],
+      "opacity": 1,
+      "type": "objectgroup",
+      "visible": true,
+      "x": 0,
+      "y": 0
+    }
+  ],
+  "nextlayerid": 3,
+  "nextobjectid": 3,
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "tiledversion": "1.10.1",
+  "tileheight": 8,
+  "tilewidth": 8,
+  "tilesets": [
+    {
+      "firstgid": 1,
+      "source": "tileset.tsj"
+    }
+  ],
+  "type": "map",
+  "version": "1.10",
+  "width": 4,
+  "properties": [
+    {
+      "name": "difficulty",
+      "type": "string",
+      "value": "normal"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "required_layers": ["ground", "entities"],
+  "allowed_object_types": ["spawnpoint"],
+  "required_properties": {
+    "map": ["difficulty"],
+    "layers": {
+      "ground": ["is_walkable"]
+    },
+    "objects": {
+      "spawnpoint": ["team"]
+    }
+  }
+}

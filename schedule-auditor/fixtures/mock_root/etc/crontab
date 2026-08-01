@@ -1,0 +1,11 @@
+# System crontab with an extra user/owner field
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# m h dom mon dow user  command
+* * * * * root /usr/local/bin/safe-script.sh
+30 4 * * * backup_user /usr/local/bin/backup.sh --secret=super_secret_token_123
+0 2 * * * root /usr/local/bin/missing-script.sh
+15 2 * * * root /usr/local/bin/unsafe-permission-script.sh
+0 0 * * * root /usr/local/bin/overlap-one.sh
+0 0 * * * root /usr/local/bin/overlap-two.sh

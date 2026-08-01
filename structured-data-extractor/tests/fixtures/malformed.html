@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Malformed JSON-LD Test</title>
+    <!-- 1. Valid single block -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "@id": "https://example.com/malformed",
+        "name": "Malformed Test Page"
+    }
+    </script>
+
+    <!-- 2. Malformed JSON block (Missing comma/quotes) -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Article"
+        "@id": "https://example.com/malformed-article"
+        "headline": "This json is completely broken"
+    }
+    </script>
+
+    <!-- 3. Another malformed JSON block (unclosed brace) -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": "Broken Person"
+    </script>
+
+    <!-- 4. Object missing @type -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@id": "https://example.com/missing-type",
+        "name": "Object with no @type"
+    }
+    </script>
+
+    <!-- 5. Object with duplicate @id (matches first block) -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "@id": "https://example.com/malformed",
+        "comment": "Duplicate @id of first block"
+    }
+    </script>
+
+    <!-- 6. Object containing reference to old domain -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "@id": "https://old-domain.com/product-1",
+        "name": "Vintage Item",
+        "url": "https://old-domain.com/product-1",
+        "manufacturer": {
+            "@id": "https://example.org/manufacturer"
+        }
+    }
+    </script>
+</head>
+<body>
+    <h1>Testing parser resilience against malformed blocks, missing types, duplicate @id, and old-domain references</h1>
+</body>
+</html>

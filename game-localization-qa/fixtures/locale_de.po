@@ -1,0 +1,30 @@
+# German translation file
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "TXT_MENU_START"
+msgstr "Spiel starten"
+
+# Option menu is missing in German
+# Quit is untranslated (same as canonical/source)
+msgid "TXT_MENU_QUIT"
+msgstr "Quit"
+
+msgid "TXT_INTRO_SPEECH"
+msgstr ""
+"Hallo, Reisender! Willkommen in {world_name}. Bitte setz dich an das Feuer.\n"
+"Genieße deinen Aufenthalt!"
+
+# Mismatched tags (should be <b>...</b>, but is <i>...</i>)
+msgid "TXT_DIALOGUE_QUEST"
+msgstr "Du musst das <i>Silberschwert</i> finden, um die Bestie zu besiegen. Akzeptierst du?"
+
+# Mismatched placeholders (%d and %d, but translated with %d and %f)
+msgid "TXT_REWARD_GOLD"
+msgstr "Du hast %d Gold und %f Silbermünzen erhalten."
+
+msgid "TXT_DUPLICATE_KEY_TEST"
+msgstr "Dies ist eine duplizierte Zeichenkette."
