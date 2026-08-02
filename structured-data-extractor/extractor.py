@@ -69,6 +69,10 @@ def clean_json_ld_text(text: str) -> str:
     return text.strip()
 
 
+# Optimization: static set to avoid heap allocations inside hot recursive loops
+EXCLUDED_KEYS = {"@id", "@context", "@graph"}
+
+
 def is_node(val: Any) -> bool:
     """
     Determines if a dictionary is a structured data Node (as opposed to a pure reference or literal).
@@ -83,9 +87,11 @@ def is_node(val: Any) -> bool:
     if "@type" in val:
         return True
 
-    other_keys = set(val.keys()) - {"@id", "@context", "@graph"}
-    if other_keys:
-        return True
+    # Optimization: Traverse keys directly and check against static set,
+    # avoiding set(val.keys()) creation and set subtraction heap allocations.
+    for k in val:
+        if k not in EXCLUDED_KEYS:
+            return True
     return False
 
 
