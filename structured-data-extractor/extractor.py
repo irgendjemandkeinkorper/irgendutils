@@ -69,6 +69,9 @@ def clean_json_ld_text(text: str) -> str:
     return text.strip()
 
 
+EXCLUDED_KEYS = {"@id", "@context", "@graph"}
+
+
 def is_node(val: Any) -> bool:
     """
     Determines if a dictionary is a structured data Node (as opposed to a pure reference or literal).
@@ -83,9 +86,11 @@ def is_node(val: Any) -> bool:
     if "@type" in val:
         return True
 
-    other_keys = set(val.keys()) - {"@id", "@context", "@graph"}
-    if other_keys:
-        return True
+    # Performance optimization: Avoid allocating a new set on every call inside the hot loop.
+    # We do a direct key membership traversal and short-circuit when a non-excluded key is found.
+    for key in val:
+        if key not in EXCLUDED_KEYS:
+            return True
     return False
 
 
