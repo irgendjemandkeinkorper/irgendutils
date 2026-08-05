@@ -28,6 +28,15 @@ const STOP_TD_TH = new Set(['table', 'thead', 'tbody', 'tfoot', 'tr']);
 const CLOSE_TAG_RE = /<\/\s*([a-zA-Z][a-zA-Z0-9-]*)[^>]*>/y;
 const OPEN_TAG_RE = /<([a-zA-Z][a-zA-Z0-9-]*)/y;
 const ATTR_RE = /([^\s=/>]+)(\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]*)))?/y;
+const COMMENT_RE = /<!--([\s\S]*?)(?:-->|$)/y;
+
+// Cached regular expressions for raw text tags to prevent re-compilation and allocations in the hot loop.
+const RAW_TEXT_RES = {
+  script: /<\/script\s*>/gi,
+  style: /<\/style\s*>/gi,
+  textarea: /<\/textarea\s*>/gi,
+  title: /<\/title\s*>/gi,
+};
 
 export function parseHTML(input) {
   const root = { type: 'root', tag: '#root', children: [] };
@@ -51,10 +60,14 @@ export function parseHTML(input) {
 
     // Comment
     if (input.startsWith('<!--', i)) {
-      const end = input.indexOf('-->', i + 4);
-      const text = end === -1 ? input.slice(i + 4) : input.slice(i + 4, end);
-      top().children.push({ type: 'comment', text });
-      i = end === -1 ? input.length : end + 3;
+      COMMENT_RE.lastIndex = i;
+      const m = COMMENT_RE.exec(input);
+      if (m) {
+        top().children.push({ type: 'comment', text: m[1] });
+        i = COMMENT_RE.lastIndex;
+      } else {
+        i += 4;
+      }
       continue;
     }
 
@@ -138,7 +151,7 @@ export function parseHTML(input) {
     if (VOID_TAGS.has(tag) || selfClose) continue;
 
     if (RAW_TEXT_TAGS.has(tag)) {
-      const closeRe = new RegExp(`</${tag}\\s*>`, 'gi');
+      const closeRe = RAW_TEXT_RES[tag];
       closeRe.lastIndex = i;
       const cm = closeRe.exec(input);
       const rawEnd = cm ? cm.index : input.length;
