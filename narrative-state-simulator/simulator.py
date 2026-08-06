@@ -8,18 +8,22 @@ class StoryState:
     """
     def __init__(self, scene_id: str, variables: Dict[str, Any]):
         self.scene_id = scene_id
-        # Convert dictionary to sorted, immutable items
-        self.variables = frozenset(sorted((k, self._freeze_val(v)) for k, v in variables.items()))
+        # Convert dictionary to immutable items (avoid sorted() as frozenset is unordered)
+        self.variables = frozenset((k, self._freeze_val(v)) for k, v in variables.items())
+        # Cache the dictionary representation to avoid recreating it on every to_dict() call
+        self._dict_cached = dict(self.variables)
 
     def _freeze_val(self, val: Any) -> Any:
         if isinstance(val, list):
             return tuple(self._freeze_val(x) for x in val)
         if isinstance(val, dict):
-            return frozenset(sorted((k, self._freeze_val(v)) for k, v in val.items()))
+            # Avoid redundant sorted() as frozenset is unordered
+            return frozenset((k, self._freeze_val(v)) for k, v in val.items())
         return val
 
     def to_dict(self) -> Dict[str, Any]:
-        return dict(self.variables)
+        # Return precomputed/cached dictionary directly (speed optimization for hot evaluation loops)
+        return self._dict_cached
 
     def __hash__(self) -> int:
         return hash((self.scene_id, self.variables))
