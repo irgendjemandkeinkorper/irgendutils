@@ -3,3 +3,6 @@
 *.bak
 node_modules/
 *:Zone.Identifier
+__pycache__/
+*.py[cod]
+.cache/
