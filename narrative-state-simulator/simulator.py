@@ -8,18 +8,27 @@ class StoryState:
     """
     def __init__(self, scene_id: str, variables: Dict[str, Any]):
         self.scene_id = scene_id
-        # Convert dictionary to sorted, immutable items
-        self.variables = frozenset(sorted((k, self._freeze_val(v)) for k, v in variables.items()))
+        # Convert dictionary to immutable items.
+        # Performance optimization: Removing redundant sorted() operations in frozenset
+        # constructions since frozenset is order-independent and does not require sorted inputs.
+        frozen_items = [(k, self._freeze_val(v)) for k, v in variables.items()]
+        self.variables = frozenset(frozen_items)
+
+        # Performance optimization: Cache the dictionary representation of state variables
+        # during initialization to avoid repetitive dict() instantiation inside the hot BFS loop
+        # (e.g., when evaluating conditions or applying mutations).
+        self._dict_cache = dict(frozen_items)
 
     def _freeze_val(self, val: Any) -> Any:
         if isinstance(val, list):
             return tuple(self._freeze_val(x) for x in val)
         if isinstance(val, dict):
-            return frozenset(sorted((k, self._freeze_val(v)) for k, v in val.items()))
+            # Performance optimization: Avoid redundant sorted() for nested dictionaries
+            return frozenset((k, self._freeze_val(v)) for k, v in val.items())
         return val
 
     def to_dict(self) -> Dict[str, Any]:
-        return dict(self.variables)
+        return self._dict_cache
 
     def __hash__(self) -> int:
         return hash((self.scene_id, self.variables))
