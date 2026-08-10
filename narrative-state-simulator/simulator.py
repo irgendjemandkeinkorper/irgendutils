@@ -8,18 +8,22 @@ class StoryState:
     """
     def __init__(self, scene_id: str, variables: Dict[str, Any]):
         self.scene_id = scene_id
-        # Convert dictionary to sorted, immutable items
-        self.variables = frozenset(sorted((k, self._freeze_val(v)) for k, v in variables.items()))
+        # Cache dictionary representation of state variables to avoid rebuilds
+        self._dict = {k: self._freeze_val(v) for k, v in variables.items()}
+        # Convert dictionary to frozenset directly without redundant sorted()
+        self.variables = frozenset(self._dict.items())
 
     def _freeze_val(self, val: Any) -> Any:
         if isinstance(val, list):
             return tuple(self._freeze_val(x) for x in val)
         if isinstance(val, dict):
-            return frozenset(sorted((k, self._freeze_val(v)) for k, v in val.items()))
+            # Convert dictionary to frozenset directly without redundant sorted()
+            return frozenset((k, self._freeze_val(v)) for k, v in val.items())
         return val
 
     def to_dict(self) -> Dict[str, Any]:
-        return dict(self.variables)
+        # Return a shallow copy of the cached dictionary to prevent downstream corruption via mutation
+        return self._dict.copy()
 
     def __hash__(self) -> int:
         return hash((self.scene_id, self.variables))
@@ -99,9 +103,9 @@ def apply_mutations(mutations: Optional[List[Dict[str, Any]]], variables: Dict[s
     """
     Applies state mutations to a copy of the variables and returns the new variables dict.
     """
-    new_vars = dict(variables)
     if not mutations:
-        return new_vars
+        return variables
+    new_vars = dict(variables)
 
     for mut in mutations:
         if not isinstance(mut, dict):
