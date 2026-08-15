@@ -84,10 +84,11 @@ jobs:
       - name: Run tests
         run: |
           if [ "${{ matrix.language }}" = "python" ]; then
-            if [ -d src ]; then export PYTHONPATH="$PWD/src:$PYTHONPATH"; fi
-            TEST_DIR=tests
-            if [ ! -d "$TEST_DIR" ]; then TEST_DIR=test; fi
-            python -m unittest discover -s "$TEST_DIR" -p 'test_*.py'
+            PKG="${{ matrix.package }}"
+            if [ -d "$PKG/src" ]; then export PYTHONPATH="$GITHUB_WORKSPACE/$PKG/src:$GITHUB_WORKSPACE/$PKG:$PYTHONPATH"; fi
+            if [ -d "$PKG/tests" ]; then TEST_DIR=tests; else TEST_DIR=test; fi
+            cd "$GITHUB_WORKSPACE"
+            python -m unittest discover -s "$PKG/$TEST_DIR" -p 'test_*.py'
           else
             npm test
           fi

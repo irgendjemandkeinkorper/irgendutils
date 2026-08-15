@@ -15,6 +15,10 @@ class TestCLI(unittest.TestCase):
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "fixtures", "mock_root"
         )
+        # Git preserves the executable bit but not world-writable fixture modes.
+        # Recreate the intentionally unsafe fixture permission on checkout.
+        unsafe_script = os.path.join(cls.fixture_dir, "usr", "local", "bin", "unsafe-permission-script.sh")
+        os.chmod(unsafe_script, 0o777)
 
     def test_cli_help(self):
         # Run help command to make sure arguments are set up correctly
