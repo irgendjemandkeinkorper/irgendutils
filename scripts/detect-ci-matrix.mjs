@@ -5,6 +5,15 @@ import { execSync } from 'child_process';
 const eventName = process.env.GITHUB_EVENT_NAME || 'workflow_dispatch';
 const allPackages = [];
 
+function containsPythonTests(dir) {
+  const testDirs = ['tests', 'test'];
+  return testDirs.some((testDir) => {
+    const full = path.join(dir, testDir);
+    return fs.existsSync(full) && fs.readdirSync(full, { withFileTypes: true }).some((entry) =>
+      entry.isFile() && entry.name.endsWith('.py'));
+  });
+}
+
 // Discover all packages in the repo
 const entries = fs.readdirSync('.', { withFileTypes: true });
 for (const entry of entries) {
@@ -18,11 +27,18 @@ for (const entry of entries) {
           allPackages.push({
             name: entry.name,
             dir: entry.name,
+            language: 'node',
           });
         }
       } catch (err) {
         console.error(`Error reading ${pkgJsonPath}:`, err);
       }
+    } else if (containsPythonTests(entry.name)) {
+      allPackages.push({
+        name: entry.name,
+        dir: entry.name,
+        language: 'python',
+      });
     }
   }
 }
@@ -81,7 +97,7 @@ console.log('Target packages for test execution:', changedPackages.map(p => p.di
 
 // Output for GitHub Actions matrix
 const matrix = {
-  include: changedPackages.map(p => ({ package: p.dir }))
+  include: changedPackages.map(p => ({ package: p.dir, language: p.language }))
 };
 
 const githubOutput = process.env.GITHUB_OUTPUT;
