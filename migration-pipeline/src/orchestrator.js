@@ -141,7 +141,9 @@ export function runPipeline(manifestPath, options = {}) {
     try {
       if (stage === 'scrape') {
         // Run site scraper
-        const cliPath = path.join(monorepoRoot, 'site-migration-scraper/src/cli.js');
+        const cliPath = path.join(monorepoRoot, options.offline
+          ? 'site-migration-scraper/src/offline-cli.js'
+          : 'site-migration-scraper/src/cli.js');
         const args = ['run', '--config', configs.scraper];
         if (options.offline) {
           args.push('--single'); // emulates safe local page-run
