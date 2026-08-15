@@ -296,11 +296,45 @@ export async function generateRedirectMap({ sourcePath, destPath, overridesPath 
   // Parse manual overrides
   const overrides = overridesPath ? parseOverrides(overridesPath) : {};
 
-  // Pre-normalize destinations for faster matching
-  const normalizedDestinations = destinations.map(dest => ({
-    ...dest,
-    normalizedPath: normalizePath(dest.url)
-  }));
+  // Pre-normalize destinations and build lookup indexes for fast O(1) matching
+  const pathIndex = new Map();
+  const slugIndex = new Map();
+  const titleIndex = new Map();
+
+  const normalizedDestinations = destinations.map(dest => {
+    const normPath = normalizePath(dest.url);
+    const item = { ...dest, normalizedPath: normPath };
+
+    if (normPath) {
+      let list = pathIndex.get(normPath);
+      if (!list) {
+        list = [];
+        pathIndex.set(normPath, list);
+      }
+      list.push(item);
+    }
+
+    if (dest.slug) {
+      let list = slugIndex.get(dest.slug);
+      if (!list) {
+        list = [];
+        slugIndex.set(dest.slug, list);
+      }
+      list.push(item);
+    }
+
+    const cleanedTitle = cleanTitle(dest.title);
+    if (cleanedTitle) {
+      let list = titleIndex.get(cleanedTitle);
+      if (!list) {
+        list = [];
+        titleIndex.set(cleanedTitle, list);
+      }
+      list.push(item);
+    }
+
+    return item;
+  });
 
   const redirectMap = [];
   const stats = {
@@ -354,17 +388,59 @@ export async function generateRedirectMap({ sourcePath, destPath, overridesPath 
     const slug = page.slug || getSlugFromUrl(rawUrl);
     const canonical = page.canonical || '';
 
-    // Collect matching candidates
+    // Collect matching candidates via fast O(1) index lookups, maintaining strategy priority per destination
     const candidates = [];
-    for (const dest of normalizedDestinations) {
-      if (dest.normalizedPath === normSource) {
+    const matchedDestsForPage = new Set();
+
+    const exactMatches = pathIndex.get(normSource);
+    if (exactMatches) {
+      for (let k = 0; k < exactMatches.length; k++) {
+        const dest = exactMatches[k];
         candidates.push({ dest, score: 100, strategy: 'exact_path' });
-      } else if (canonical && normalizePath(canonical) === dest.normalizedPath) {
-        candidates.push({ dest, score: 90, strategy: 'canonical' });
-      } else if (slug && dest.slug && slug === dest.slug) {
-        candidates.push({ dest, score: 80, strategy: 'slug' });
-      } else if (title && dest.title && cleanTitle(title) === cleanTitle(dest.title)) {
-        candidates.push({ dest, score: 70, strategy: 'title' });
+        matchedDestsForPage.add(dest);
+      }
+    }
+
+    if (canonical) {
+      const normCanonical = normalizePath(canonical);
+      if (normCanonical) {
+        const canonicalMatches = pathIndex.get(normCanonical);
+        if (canonicalMatches) {
+          for (let k = 0; k < canonicalMatches.length; k++) {
+            const dest = canonicalMatches[k];
+            if (!matchedDestsForPage.has(dest)) {
+              candidates.push({ dest, score: 90, strategy: 'canonical' });
+              matchedDestsForPage.add(dest);
+            }
+          }
+        }
+      }
+    }
+
+    if (slug) {
+      const slugMatches = slugIndex.get(slug);
+      if (slugMatches) {
+        for (let k = 0; k < slugMatches.length; k++) {
+          const dest = slugMatches[k];
+          if (!matchedDestsForPage.has(dest)) {
+            candidates.push({ dest, score: 80, strategy: 'slug' });
+            matchedDestsForPage.add(dest);
+          }
+        }
+      }
+    }
+
+    const normTitle = cleanTitle(title);
+    if (normTitle) {
+      const titleMatches = titleIndex.get(normTitle);
+      if (titleMatches) {
+        for (let k = 0; k < titleMatches.length; k++) {
+          const dest = titleMatches[k];
+          if (!matchedDestsForPage.has(dest)) {
+            candidates.push({ dest, score: 70, strategy: 'title' });
+            matchedDestsForPage.add(dest);
+          }
+        }
       }
     }
 
