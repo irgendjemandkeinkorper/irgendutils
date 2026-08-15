@@ -32,6 +32,26 @@ Each package is fully independent. To run tests for a single package:
 
 2. All implemented utilities use Node.js's native test runner (`node --test`), which is fast and reliable.
 
+### Python packages
+
+Python utilities use Python 3.11+ and keep their tests offline and deterministic, following the same no-external-network standard as the Node packages above. From a package directory:
+
+```bash
+cd disk-growth-analyzer  # replace with the package you are working on
+python3 -m venv .venv
+. .venv/bin/activate
+
+# Install only when the package declares dependencies.
+python -m pip install -r requirements.txt  # if requirements.txt exists
+python -m pip install -e '.[test]'        # if pyproject.toml exposes this extra
+
+# Use the package's documented runner; these are the common forms.
+python -m pytest -q
+python -m unittest discover -s tests -p 'test_*.py'
+```
+
+Python unit tests must not require live HTTP services, credentials, databases, or other external network access. Use fixtures and local adapters instead. The CI matrix is being extended to discover Python packages in [issue #48](https://github.com/irgendjemandkeinkorper/irgendutils/issues/48); once that lands, its detected package list should be the authoritative cross-check for this local workflow.
+
 ---
 
 ## Reproducing CI Logic Locally
