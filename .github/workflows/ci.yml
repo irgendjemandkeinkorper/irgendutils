@@ -89,7 +89,18 @@ jobs:
             export PYTHONPATH="$GITHUB_WORKSPACE/$PKG:$PYTHONPATH"
             if [ -d "$PKG/src" ]; then export PYTHONPATH="$GITHUB_WORKSPACE/$PKG/src:$PYTHONPATH"; fi
             if [ -d "$PKG/tests" ]; then TEST_DIR=tests; else TEST_DIR=test; fi
+            PY_TEST_COUNT=$(find "$PKG/$TEST_DIR" -maxdepth 1 -type f -name 'test_*.py' | wc -l)
+            if [ "$PY_TEST_COUNT" -eq 0 ]; then
+              echo "CI test coverage guard failed: $PKG has no Python test files"
+              exit 1
+            fi
             python -m unittest discover -s "$PKG/$TEST_DIR" -p 'test_*.py'
           else
-            npm test
+            TEST_OUTPUT=$(npm test 2>&1) || { printf '%s\n' "$TEST_OUTPUT"; exit 1; }
+            printf '%s\n' "$TEST_OUTPUT"
+            TEST_COUNT=$(printf '%s\n' "$TEST_OUTPUT" | sed -n 's/^# tests //p' | tail -n 1)
+            if [ -z "$TEST_COUNT" ] || [ "$TEST_COUNT" -eq 0 ]; then
+              echo "CI test coverage guard failed: ${{ matrix.package }} reported zero Node tests"
+              exit 1
+            fi
           fi

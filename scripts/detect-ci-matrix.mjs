@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 
 const eventName = process.env.GITHUB_EVENT_NAME || 'workflow_dispatch';
 const allPackages = [];
+const invalidPackages = [];
 
 function containsPythonTests(dir) {
   const testDirs = ['tests', 'test'];
@@ -11,6 +12,14 @@ function containsPythonTests(dir) {
     const full = path.join(dir, testDir);
     return fs.existsSync(full) && fs.readdirSync(full, { withFileTypes: true }).some((entry) =>
       entry.isFile() && entry.name.endsWith('.py'));
+  });
+}
+
+function containsNodeTests(dir) {
+  return ['test', 'tests'].some((testDir) => {
+    const full = path.join(dir, testDir);
+    return fs.existsSync(full) && fs.readdirSync(full, { withFileTypes: true }).some((entry) =>
+      entry.isFile() && /(?:test|spec)\.(?:c|m)?js$|(?:test|spec)\.tsx?$/.test(entry.name));
   });
 }
 
@@ -23,7 +32,11 @@ for (const entry of entries) {
       try {
         const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
         const testScript = pkgJson.scripts?.test;
-        if (testScript && !testScript.includes('Add tests here')) {
+        if (!testScript || testScript.includes('Add tests here')) {
+          invalidPackages.push(`${entry.name}: missing or placeholder test script`);
+        } else if (!containsNodeTests(entry.name)) {
+          invalidPackages.push(`${entry.name}: no Node test files under test/ or tests/`);
+        } else {
           allPackages.push({
             name: entry.name,
             dir: entry.name,
@@ -41,6 +54,12 @@ for (const entry of entries) {
       });
     }
   }
+}
+
+if (invalidPackages.length) {
+  console.error('CI test coverage guard failed:');
+  for (const issue of invalidPackages) console.error(`- ${issue}`);
+  process.exit(1);
 }
 
 let changedPackages = [];

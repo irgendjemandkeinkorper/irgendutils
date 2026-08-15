@@ -7,6 +7,8 @@ This monorepo of lightweight utility apps is structured such that each utility i
 ## Shared Testing Standards
 
 1. **No External Network Dependencies in Unit Tests:** All package unit test suites (`node --test`) must run completely offline without needing API secrets, live web servers, or active database connections. They use mock adapters, pre-recorded responses, or localized file-system fixtures.
+
+2. **Every package needs real tests:** CI rejects missing or placeholder test scripts and rejects Node or Python packages that report zero test files. A package is not considered covered merely because its test command exits successfully.
 2. **Deterministic & Reversible:** Tests perform no state-mutating changes in production environments.
 3. **Normalized Error Output:** CLI subprocess tests are normalized to explicitly output the subprocess's `stdout` and `stderr` upon test failure, enabling quick pinpointing of the underlying assertion failure rather than generic test errors.
 
