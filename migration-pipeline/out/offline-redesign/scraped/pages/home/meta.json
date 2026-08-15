@@ -1,0 +1,13 @@
+{
+  "title": "Welcome",
+  "slug": "home",
+  "headings": [
+    "Welcome"
+  ],
+  "images": [
+    "https://example.com/logo.png"
+  ],
+  "links": [
+    "/about"
+  ]
+}

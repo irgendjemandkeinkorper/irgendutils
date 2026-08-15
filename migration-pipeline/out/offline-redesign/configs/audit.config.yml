@@ -1,0 +1,7 @@
+environment: staging
+runs: 1
+max_pages: 5
+analytics:
+  waived: false
+consent:
+  required: false

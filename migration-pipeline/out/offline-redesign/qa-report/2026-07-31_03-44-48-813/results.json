@@ -1,0 +1,64 @@
+{
+  "tool": "@irgendutils/wp-qa-playwright",
+  "generated_at": "2026-07-31T03:44:48.813Z",
+  "template_url": "https://template.example.com/",
+  "checks": [
+    "visual",
+    "links",
+    "console",
+    "structural",
+    "responsive",
+    "wp_hygiene"
+  ],
+  "thresholds": {
+    "pixel_diff_pct": 0.15,
+    "max_broken_links": 0
+  },
+  "pass": true,
+  "summary": {
+    "targets": 1,
+    "passed": 1,
+    "failed": 0,
+    "findings": {
+      "error": 0,
+      "warn": 0,
+      "info": 0
+    }
+  },
+  "results": [
+    {
+      "target": "https://good.example.com/",
+      "final_url": "https://good.example.com/",
+      "pass": true,
+      "checks_run": [
+        "visual",
+        "links",
+        "console",
+        "structural",
+        "responsive",
+        "wp_hygiene"
+      ],
+      "findings": [],
+      "per_check": {
+        "visual": {
+          "360": {
+            "diffPct": 0,
+            "dimensionsMatch": true
+          },
+          "1280": {
+            "diffPct": 0,
+            "dimensionsMatch": true
+          }
+        },
+        "links": {
+          "total": 4,
+          "broken": 0,
+          "threshold": 0
+        },
+        "wp_hygiene": {
+          "restAvailable": true
+        }
+      }
+    }
+  ]
+}

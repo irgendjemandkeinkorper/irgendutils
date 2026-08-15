@@ -1,0 +1,8 @@
+start_urls: ["https://old.example.com"]
+allow_domains: []
+max_pages: 50
+max_depth: 3
+content_selector: main, article, .entry-content
+strip_selectors: [nav, footer, .ads, .cookie]
+output: ./out/offline-redesign/scraped
+formats: [html, markdown, json]
