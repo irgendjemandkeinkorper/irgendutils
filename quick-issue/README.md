@@ -13,8 +13,11 @@ Open `index.html` in a browser (double-click, or host it — see below).
    - `Contents: Read and write` — used only to upload attachments
    - `Metadata: Read` (added automatically)
 
-   Tick *Remember on this device* to store it in `localStorage`. The token is
-   never sent anywhere except `api.github.com`.
+   Tokens are stored in `sessionStorage` by default and forgotten when the tab
+   closes. *Remember on this device* is an explicit opt-in that also writes the
+   token in plaintext to persistent `localStorage`; avoid it on shared/public
+   machines and disconnect/rotate the token when finished. The token is never
+   sent anywhere except `api.github.com`.
 2. **Pick a repo** from the type-to-filter list (public/private is flagged).
 3. **Fill the template** — title, severity, stage + platform + note, repro / expected / actual.
 4. **Attach** images or video (drag-drop, click, or paste).
@@ -42,6 +45,23 @@ the **target repo** and references them:
 - **Video** always attaches as a clickable link — GitHub markdown can't inline a
   player for API-hosted files.
 - Max **25 MB** per file.
+
+## Token security and scope
+
+This is a client-only static page, so a token is exposed to JavaScript running
+in this page and to browser extensions or other code that can inspect browser
+storage. A compromised page can use the token for every repository and action
+allowed by its fine-grained permissions. Use a narrowly limited repository
+selection and rotate the token if you suspect exposure.
+
+`Issues: Read and write` is required to list repositories and create issues.
+`Contents: Read and write` is also required because attachments are uploaded
+into `issue-attachments/` through GitHub's Contents API. The current attachment
+implementation therefore cannot use an Issues-only token.
+
+Security regression check: attach or drop a file named
+`<img src=x onerror=alert(1)>.png` and confirm the filename appears as literal
+text in the thumbnail; no alert or new element should be created.
 
 ## Hosting (optional)
 

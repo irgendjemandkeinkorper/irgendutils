@@ -7,8 +7,9 @@ issue form. No build, no server, no dependencies: open `index.html` in a browser
 ## Architecture map
 
 - **Stack:** one static file, `index.html` — inline `<style>`, HTML form, and a vanilla
-  `<script>`. Talks only to `api.github.com`. State (the PAT, optionally) lives in
-  `localStorage`. There is no build step and no backend.
+  `<script>`. Talks only to `api.github.com`. State (the PAT, optionally) lives
+  in `sessionStorage` by default, or persistent `localStorage` after explicit
+  opt-in. There is no build step and no backend.
 - **Layout inside `index.html`:**
   - `<style>` (top) — all CSS.
   - Markup — `#authCard` (PAT connect / remember / disconnect), `#form` (repo picker
@@ -33,8 +34,14 @@ vault under `vault/`. Open the matching note before reading source; keep transie
 there, not in this file.
 
 ## Conventions
-- **Client-only.** The PAT is never sent anywhere except `api.github.com`; only stored in
-  `localStorage` when "Remember on this device" is ticked.
+- **Client-only.** The PAT is never sent anywhere except `api.github.com`. It is
+  stored in `sessionStorage` by default and forgotten when the tab closes;
+  ticking "Remember on this device" additionally stores it in plaintext
+  `localStorage` until disconnected or cleared.
+- **Accepted token risk.** Any XSS on this page, browser extension with storage
+  access, or shared-machine user could read the PAT and use every permitted
+  action. Restrict repository access, avoid persistent storage on shared
+  machines, and rotate exposed tokens.
 - Needs a fine-grained PAT with **Issues: R/W** and **Contents: R/W** (attachments upload).
 - Attachments upload into an `issue-attachments/` folder in the **target repo** (GitHub's
   native drag-drop endpoint isn't in the public API). Images inline only on **public**

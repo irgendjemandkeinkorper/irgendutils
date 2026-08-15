@@ -87,6 +87,7 @@
       </div>
       <div class="bar">
         <label style="margin:0; font-weight:400;"><input type="checkbox" id="remember"> Remember on this device</label>
+        <span class="hint">⚠ stores the token persistently in plaintext localStorage</span>
         <span class="grow"></span>
         <button class="link" id="forget" style="display:none">Disconnect</button>
       </div>
@@ -96,7 +97,7 @@
           <li>GitHub → <b>Settings → Developer settings → Fine-grained tokens → Generate new token</b></li>
           <li><b>Repository access:</b> the repos you'll file issues in (or All).</li>
           <li><b>Permissions →</b> <code>Issues: Read and write</code>, <code>Contents: Read and write</code> (for attachment uploads), <code>Metadata: Read</code>.</li>
-          <li>Paste it above. Stored only in this browser's localStorage — never sent anywhere but api.github.com.</li>
+          <li>Paste it above. By default it lasts only for this tab; never sent anywhere but api.github.com.</li>
         </ol>
       </details>
     </div>
@@ -195,14 +196,24 @@ function apiHeaders() {
            "X-GitHub-Api-Version": "2022-11-28" };
 }
 window.addEventListener("DOMContentLoaded", () => {
-  const saved = localStorage.getItem("qi_token");
-  if (saved) { $("token").value = saved; $("remember").checked = true; connect(); }
+  const sessionToken = sessionStorage.getItem("qi_token");
+  const rememberedToken = localStorage.getItem("qi_token");
+  const saved = sessionToken || rememberedToken;
+  if (saved) {
+    $("token").value = saved;
+    $("remember").checked = Boolean(!sessionToken && rememberedToken);
+    connect();
+  }
   buildSeverity();
 });
 
 // ---------- connect ----------
 $("connect").onclick = connect;
-$("forget").onclick = () => { localStorage.removeItem("qi_token"); location.reload(); };
+$("forget").onclick = () => {
+  sessionStorage.removeItem("qi_token");
+  localStorage.removeItem("qi_token");
+  location.reload();
+};
 async function connect() {
   const tok = $("token").value.trim();
   if (!tok) return;
@@ -213,8 +224,12 @@ async function connect() {
     state.user = u;
     $("userBadge").textContent = "@" + u.login;
     $("forget").style.display = "";
-    if ($("remember").checked) localStorage.setItem("qi_token", tok);
-    else localStorage.removeItem("qi_token");
+    sessionStorage.setItem("qi_token", tok);
+    if ($("remember").checked) {
+      localStorage.setItem("qi_token", tok);
+    } else {
+      localStorage.removeItem("qi_token");
+    }
     await loadRepos();
     $("form").style.display = "";
     clearStatus();
@@ -243,7 +258,7 @@ async function loadRepos() {
 }
 $("repo").addEventListener("input", () => {
   const r = state.repos[$("repo").value];
-  if (r) $("repoMeta").innerHTML = r.private
+  if (r) $("repoMeta").textContent = r.private
       ? "🔒 Private repo — uploaded images won't render inline in the issue (they'll appear as links)."
       : "🌐 Public repo — images will render inline. ✓";
   else $("repoMeta").textContent = "";
@@ -304,11 +319,27 @@ function renderThumbs() {
   const c = $("thumbs"); c.innerHTML = "";
   state.files.forEach((it, i) => {
     const d = document.createElement("div"); d.className = "thumb";
-    const media = it.isImage
-      ? `<img class="media" src="${it.preview}">`
-      : `<div class="media">🎬</div>`;
-    d.innerHTML = media + `<div class="name">${it.name}</div><button class="x" title="remove">×</button>`;
-    d.querySelector(".x").onclick = () => { state.files.splice(i, 1); renderThumbs(); };
+    if (it.isImage) {
+      const media = document.createElement("img");
+      media.className = "media";
+      media.src = it.preview;
+      d.appendChild(media);
+    } else {
+      const media = document.createElement("div");
+      media.className = "media";
+      media.textContent = "🎬";
+      d.appendChild(media);
+    }
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = it.name;
+    d.appendChild(name);
+    const remove = document.createElement("button");
+    remove.className = "x";
+    remove.title = "remove";
+    remove.textContent = "×";
+    remove.onclick = () => { state.files.splice(i, 1); renderThumbs(); };
+    d.appendChild(remove);
     c.appendChild(d);
   });
 }
@@ -339,8 +370,7 @@ async function submit() {
     const body = buildBody(repo, media);
     const finalTitle = $("prefix").checked ? `[${state.sev.toUpperCase()}] ${title}` : title;
     const issue = await createIssue(repo, finalTitle, body, buildLabels());
-    setStatus("ok", `✅ Created <a href="${issue.html_url}" target="_blank">#${issue.number}</a> in ${repo.owner}/${repo.name}. `
-      + `<a href="#" id="another">File another →</a>`);
+    setSuccessStatus(issue, repo);
     $("another").onclick = e => { e.preventDefault(); $("reset").click(); };
     window.open(issue.html_url, "_blank");
   } catch (e) {
@@ -417,6 +447,26 @@ async function ghJSON(url, opts = {}) {
   if (!r.ok) throw new Error(data.message || `HTTP ${r.status}`);
   return data;
 }
-function setStatus(kind, html) { const s = $("status"); s.className = "status show " + kind; s.innerHTML = html; }
+function setStatus(kind, message) {
+  const s = $("status");
+  s.className = "status show " + kind;
+  s.textContent = message;
+}
+function setSuccessStatus(issue, repo) {
+  const s = $("status");
+  s.className = "status show ok";
+  s.append("✅ Created ");
+  const issueLink = document.createElement("a");
+  issueLink.href = issue.html_url;
+  issueLink.target = "_blank";
+  issueLink.rel = "noopener noreferrer";
+  issueLink.textContent = "#" + issue.number;
+  s.append(issueLink, " in " + repo.owner + "/" + repo.name + ". ");
+  const another = document.createElement("a");
+  another.href = "#";
+  another.id = "another";
+  another.textContent = "File another →";
+  s.append(another);
+}
 function clearStatus() { $("status").className = "status"; }
 </script>
