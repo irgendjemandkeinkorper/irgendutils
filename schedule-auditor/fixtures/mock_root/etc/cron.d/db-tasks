@@ -1,0 +1,5 @@
+# Cron.d file with user field
+# Run database optimization every hour
+0 * * * * db_user /usr/local/bin/optimize-db.sh --pwd=db_password_abc
+# A very frequent task (every minute)
+* * * * * nobody /usr/local/bin/heartbeat.sh

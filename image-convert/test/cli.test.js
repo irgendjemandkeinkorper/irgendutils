@@ -16,6 +16,26 @@ function runCli(args, opts = {}) {
   return spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8', timeout: 15000, ...opts })
 }
 
+function assertStatus(r, expected) {
+  if (r.status !== expected) {
+    assert.fail(
+      `Expected exit code ${expected} but got ${r.status}.\n\n` +
+      `--- STDOUT ---\n${r.stdout || ''}\n\n` +
+      `--- STDERR ---\n${r.stderr || ''}`
+    );
+  }
+}
+
+function assertNonZero(r) {
+  if (r.status === 0) {
+    assert.fail(
+      `Expected exit code to be non-zero but got 0.\n\n` +
+      `--- STDOUT ---\n${r.stdout || ''}\n\n` +
+      `--- STDERR ---\n${r.stderr || ''}`
+    );
+  }
+}
+
 async function withSample(fn) {
   const dir = mkdtempSync(join(tmpdir(), 'image-convert-test-'))
   const src = join(dir, 'sample.png')
@@ -27,33 +47,33 @@ async function withSample(fn) {
 
 test('--help prints usage and exits 0', () => {
   const r = runCli(['--help'])
-  assert.equal(r.status, 0)
+  assertStatus(r, 0)
   assert.match(r.stdout, /image-convert/)
   assert.match(r.stdout, /--apply/)
 })
 
 test('no arguments prints usage and exits non-zero', () => {
   const r = runCli([])
-  assert.notEqual(r.status, 0)
+  assertNonZero(r)
   assert.match(r.stdout, /image-convert/)
 })
 
 test('unsupported --format is rejected with exit 2', () => {
   const r = runCli(['.', '--format', 'jpegxl'])
-  assert.equal(r.status, 2)
+  assertStatus(r, 2)
   assert.match(r.stderr, /unsupported format/i)
 })
 
 test('--delete-original without --apply is refused (dry runs never delete)', () => {
   const r = runCli(['.', '--delete-original'])
-  assert.equal(r.status, 2)
+  assertStatus(r, 2)
   assert.match(r.stderr, /Refusing --delete-original without --apply/)
 })
 
 test('dry run (default) lists the plan and writes nothing', async () => {
   await withSample(async (dir, src) => {
     const r = runCli([src, '--format', 'webp'])
-    assert.equal(r.status, 0)
+    assertStatus(r, 0)
     assert.match(r.stdout, /DRY RUN/)
     assert.match(r.stdout, /Dry run — nothing written/)
     assert.equal(existsSync(join(dir, 'sample.webp')), false)
@@ -63,7 +83,7 @@ test('dry run (default) lists the plan and writes nothing', async () => {
 test('--apply writes the converted file', async () => {
   await withSample(async (dir, src) => {
     const r = runCli([src, '--format', 'webp', '--apply', '--quiet'])
-    assert.equal(r.status, 0, r.stdout + r.stderr)
+    assertStatus(r, 0)
     assert.ok(existsSync(join(dir, 'sample.webp')))
   })
 })
@@ -71,7 +91,7 @@ test('--apply writes the converted file', async () => {
 test('--apply --delete-original removes the source once conversion succeeds', async () => {
   await withSample(async (dir, src) => {
     const r = runCli([src, '--format', 'webp', '--apply', '--delete-original', '--quiet'])
-    assert.equal(r.status, 0, r.stdout + r.stderr)
+    assertStatus(r, 0)
     assert.ok(existsSync(join(dir, 'sample.webp')))
     assert.equal(existsSync(src), false, 'original should be deleted after success')
   })
@@ -81,7 +101,7 @@ test('no convertible images found exits 1 with a hint', () => {
   const dir = mkdtempSync(join(tmpdir(), 'image-convert-empty-'))
   try {
     const r = runCli([dir])
-    assert.equal(r.status, 1)
+    assertStatus(r, 1)
     assert.match(r.stderr, /No convertible images found/)
   } finally {
     rmSync(dir, { recursive: true, force: true })

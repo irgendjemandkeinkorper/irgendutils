@@ -21,6 +21,16 @@ function run(args, cwd) {
   });
 }
 
+function assertStatus(r, expected) {
+  if (r.status !== expected) {
+    assert.fail(
+      `Expected exit code ${expected} but got ${r.status}.\n\n` +
+      `--- STDOUT ---\n${r.stdout || ''}\n\n` +
+      `--- STDERR ---\n${r.stderr || ''}`
+    );
+  }
+}
+
 function withTmp(fn) {
   const dir = mkdtempSync(path.join(tmpdir(), 'ovf-cli-'));
   try {
@@ -33,7 +43,7 @@ function withTmp(fn) {
 test('forge exits 0 and writes a verifiable vault', () => {
   withTmp((dir) => {
     const r = run(['forge', manifest, '-o', dir, '--date', '2026-07-21'], dir);
-    assert.equal(r.status, 0, r.stderr);
+    assertStatus(r, 0);
     assert.match(r.stdout, /verify: front-matter valid/);
     assert.ok(existsSync(path.join(dir, 'acme-redesign', '00-Index.md')));
   });
@@ -42,7 +52,7 @@ test('forge exits 0 and writes a verifiable vault', () => {
 test('dry-run writes nothing', () => {
   withTmp((dir) => {
     const r = run(['forge', manifest, '-o', dir, '--dry-run'], dir);
-    assert.equal(r.status, 0, r.stderr);
+    assertStatus(r, 0);
     assert.match(r.stdout, /Dry run/);
     assert.ok(!existsSync(path.join(dir, 'acme-redesign')), 'no vault dir created');
   });
@@ -50,17 +60,17 @@ test('dry-run writes nothing', () => {
 
 test('add-decision then add-meeting keep the vault verifiable', () => {
   withTmp((dir) => {
-    assert.equal(run(['forge', manifest, '-o', dir, '--date', '2026-07-21'], dir).status, 0);
+    assertStatus(run(['forge', manifest, '-o', dir, '--date', '2026-07-21'], dir), 0);
 
     const d = run(['add-decision', 'acme-redesign', 'Use multisite', '-o', dir, '--date', '2026-07-22'], dir);
-    assert.equal(d.status, 0, d.stderr);
+    assertStatus(d, 0);
     assert.ok(existsSync(path.join(dir, 'acme-redesign', '04-Decisions', '2026-07-22 Use multisite.md')));
 
     const m = run(['add-meeting', 'acme-redesign', 'Kickoff', '-o', dir, '--date', '2026-07-23'], dir);
-    assert.equal(m.status, 0, m.stderr);
+    assertStatus(m, 0);
     assert.ok(existsSync(path.join(dir, 'acme-redesign', '05-Meetings', '2026-07-23 Kickoff.md')));
 
-    assert.equal(run(['verify', 'acme-redesign', '-o', dir], dir).status, 0);
+    assertStatus(run(['verify', 'acme-redesign', '-o', dir], dir), 0);
   });
 });
 
@@ -70,7 +80,7 @@ test('verify exits 1 when a note develops a dangling link', () => {
     const tasks = path.join(dir, 'acme-redesign', '06-Tasks', 'Tasks.md');
     writeFileSync(tasks, readFileSync(tasks, 'utf8') + '\n- see [[Nonexistent Note]]\n');
     const r = run(['verify', 'acme-redesign', '-o', dir], dir);
-    assert.equal(r.status, 1);
+    assertStatus(r, 1);
     assert.match(r.stdout, /dangling link/);
   });
 });
@@ -78,14 +88,14 @@ test('verify exits 1 when a note develops a dangling link', () => {
 test('add-meeting on a non-forged dir errors cleanly', () => {
   withTmp((dir) => {
     const r = run(['add-meeting', 'ghost', 'Kickoff', '-o', dir], dir);
-    assert.equal(r.status, 1);
+    assertStatus(r, 1);
     assert.match(r.stderr, /not a forged vault/);
   });
 });
 
 test('unknown command and missing args are usage errors (exit 2)', () => {
   withTmp((dir) => {
-    assert.equal(run(['bogus'], dir).status, 2);
-    assert.equal(run(['forge'], dir).status, 2);
+    assertStatus(run(['bogus'], dir), 2);
+    assertStatus(run(['forge'], dir), 2);
   });
 });

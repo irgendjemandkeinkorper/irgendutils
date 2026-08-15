@@ -1,0 +1,8 @@
+{
+  "url": "https://example.com/orphan",
+  "title": "Orphan Page",
+  "metaDesc": "An isolated page",
+  "date": "invalid-date-format",
+  "headings": ["H1: Orphan Title"],
+  "links": []
+}

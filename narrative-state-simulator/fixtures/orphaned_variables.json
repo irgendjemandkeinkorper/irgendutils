@@ -1,0 +1,42 @@
+{
+  "start_scene": "start",
+  "variables": {
+    "active_var": 1,
+    "unused_var": "hello"
+  },
+  "scenes": {
+    "start": {
+      "text": "The game begins.",
+      "choices": [
+        {
+          "text": "Use undefined var in condition",
+          "target": "second_scene",
+          "condition": {
+            "variable": "undefined_var_1",
+            "operator": "==",
+            "value": true
+          }
+        },
+        {
+          "text": "Go to non-existent scene",
+          "target": "ghost_scene"
+        },
+        {
+          "text": "Mutate undefined variable",
+          "target": "second_scene",
+          "mutations": [
+            {
+              "variable": "undefined_var_2",
+              "operation": "add",
+              "value": 5
+            }
+          ]
+        }
+      ]
+    },
+    "second_scene": {
+      "text": "Nothing to do here.",
+      "terminal": true
+    }
+  }
+}

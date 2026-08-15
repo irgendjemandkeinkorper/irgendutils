@@ -1,0 +1,87 @@
+{
+  "tool": "@irgendutils/post-deploy-smoke-test",
+  "target": "https://acme.example.com",
+  "generated_at": "2026-07-31T03:36:00.924Z",
+  "ok": false,
+  "duration_ms": 65,
+  "summary": {
+    "total": 6,
+    "passed": 0,
+    "failed": 6,
+    "warnings": 0
+  },
+  "checks": [
+    {
+      "path": "/",
+      "url": "https://acme.example.com/",
+      "authed": false,
+      "ok": false,
+      "status": null,
+      "duration_ms": 61,
+      "failures": [
+        "request failed: fetch failed (getaddrinfo ENOTFOUND acme.example.com)"
+      ],
+      "warnings": []
+    },
+    {
+      "path": "/shop",
+      "url": "https://acme.example.com/shop",
+      "authed": false,
+      "ok": false,
+      "status": null,
+      "duration_ms": 10,
+      "failures": [
+        "request failed: fetch failed (getaddrinfo ENOTFOUND acme.example.com)"
+      ],
+      "warnings": []
+    },
+    {
+      "path": "/wp-json",
+      "url": "https://acme.example.com/wp-json",
+      "authed": false,
+      "ok": false,
+      "status": null,
+      "duration_ms": 9,
+      "failures": [
+        "request failed: fetch failed (getaddrinfo ENOTFOUND acme.example.com)"
+      ],
+      "warnings": []
+    },
+    {
+      "path": "/old-page",
+      "url": "https://acme.example.com/old-page",
+      "authed": false,
+      "ok": false,
+      "status": null,
+      "duration_ms": 8,
+      "failures": [
+        "request failed: fetch failed (getaddrinfo ENOTFOUND acme.example.com)"
+      ],
+      "warnings": []
+    },
+    {
+      "path": "/wp-login.php",
+      "url": "https://acme.example.com/wp-login.php",
+      "authed": false,
+      "ok": false,
+      "status": null,
+      "duration_ms": 7,
+      "failures": [
+        "request failed: fetch failed (getaddrinfo ENOTFOUND acme.example.com)"
+      ],
+      "warnings": []
+    },
+    {
+      "path": "/wp-json/wp/v2/users/me",
+      "url": "https://acme.example.com/wp-json/wp/v2/users/me",
+      "authed": true,
+      "ok": false,
+      "status": null,
+      "duration_ms": null,
+      "failures": [
+        "authed check needs env var WP_APP_PASSWORD, which is not set (see .env.example)"
+      ],
+      "warnings": []
+    }
+  ]
+}

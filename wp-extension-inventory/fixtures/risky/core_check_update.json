@@ -1,0 +1,12 @@
+[
+  {
+    "version": "6.2.5",
+    "update_type": "minor",
+    "package_url": "https://downloads.wordpress.org/release/wordpress-6.2.5.zip"
+  },
+  {
+    "version": "6.5.2",
+    "update_type": "major",
+    "package_url": "https://downloads.wordpress.org/release/wordpress-6.5.2.zip"
+  }
+]

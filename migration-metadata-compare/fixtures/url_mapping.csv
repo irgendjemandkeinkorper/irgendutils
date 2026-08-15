@@ -1,0 +1,4 @@
+source,destination
+http://example.com/about,https://new-site.com/about-us
+http://example.com/blog/post-1,https://new-site.com/blog/our-first-post
+http://example.com/contact,https://new-site.com/contact-new

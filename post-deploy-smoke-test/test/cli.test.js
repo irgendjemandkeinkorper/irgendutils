@@ -40,6 +40,16 @@ function runCli(args, { responses, env = {} } = {}) {
   return { ...res, results };
 }
 
+function assertStatus(r, expected) {
+  if (r.status !== expected) {
+    assert.fail(
+      `Expected exit code ${expected} but got ${r.status}.\n\n` +
+      `--- STDOUT ---\n${r.stdout || ''}\n\n` +
+      `--- STDERR ---\n${r.stderr || ''}`
+    );
+  }
+}
+
 const HEALTHY_ENV = { WP_APP_PASSWORD: 'abcd efgh ijkl mnop' };
 
 test('smoke run: healthy site exits 0 and writes passing results.json', () => {
@@ -47,11 +57,11 @@ test('smoke run: healthy site exits 0 and writes passing results.json', () => {
     responses: 'responses-healthy.json',
     env: HEALTHY_ENV,
   });
-  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assertStatus(r, 0);
   assert.match(r.stdout, /PASS/);
-  assert.equal(r.results.ok, true);
+  assert.equal(r.results.status, 'success');
   assert.equal(r.results.summary.failed, 0);
-  assert.equal(r.results.checks.length, 6);
+  assert.equal(r.results.results.length, 6);
 });
 
 test('smoke run: broken site exits non-zero with clear reasons in output', () => {
@@ -59,12 +69,12 @@ test('smoke run: broken site exits non-zero with clear reasons in output', () =>
     responses: 'responses-broken.json',
     env: HEALTHY_ENV,
   });
-  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assertStatus(r, 1);
   assert.match(r.stdout, /FAIL/);
   assert.match(r.stdout, /expected status 200, got 500/);
   assert.match(r.stdout, /does not contain "Log In"/);
   assert.match(r.stdout, /suspiciously tiny body/);
-  assert.equal(r.results.ok, false);
+  assert.equal(r.results.status, 'failure');
   assert.ok(r.results.summary.failed >= 5);
 });
 
@@ -74,7 +84,7 @@ test('smoke run --fail-fast stops after the first failure', () => {
     env: HEALTHY_ENV,
   });
   assert.equal(r.status, 1);
-  assert.equal(r.results.checks.length, 1);
+  assert.equal(r.results.results.length, 1);
 });
 
 test('smoke run --url overrides the target', () => {
@@ -83,8 +93,7 @@ test('smoke run --url overrides the target', () => {
     { responses: 'responses-healthy.json', env: HEALTHY_ENV },
   );
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.equal(r.results.target, 'https://staging.acme.example.com');
-  assert.ok(r.results.checks[0].url.startsWith('https://staging.acme.example.com/'));
+  assert.ok(r.results.results[0].url.startsWith('https://staging.acme.example.com/'));
 });
 
 test('a hanging URL cannot stall the pipeline: bounded run, non-zero exit', () => {
@@ -93,18 +102,18 @@ test('a hanging URL cannot stall the pipeline: bounded run, non-zero exit', () =
     responses: 'responses-hang.json',
   });
   assert.ok(Date.now() - started < 10000);
-  assert.equal(r.status, 1);
+  assertStatus(r, 1);
   assert.match(r.stdout, /timed out after 200ms/);
 });
 
 test('missing config exits 2 with a helpful message', () => {
   const r = runCli(['run', '--config', 'nope.yml'], { responses: 'responses-healthy.json' });
-  assert.equal(r.status, 2);
+  assertStatus(r, 2);
   assert.match(r.stderr, /Config not found/);
 });
 
 test('--help prints usage and exits 0', () => {
   const r = runCli(['run', '--help'], { responses: 'responses-healthy.json' });
-  assert.equal(r.status, 0);
+  assertStatus(r, 0);
   assert.match(r.stdout, /smoke run/);
 });

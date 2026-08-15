@@ -1,0 +1,10 @@
+[Unit]
+Description=Unusual Frequent Timer
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=false
+Unit=frequent.service
+
+[Install]
+WantedBy=timers.target

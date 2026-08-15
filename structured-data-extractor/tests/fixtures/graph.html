@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>JSON-LD Graph Test</title>
+    <!-- Graph Block JSON-LD -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "WebSite",
+                "@id": "https://example.com/#website",
+                "url": "https://example.com/",
+                "name": "Example Website",
+                "publisher": {
+                    "@id": "https://example.com/#organization"
+                }
+            },
+            {
+                "@type": "Organization",
+                "@id": "https://example.com/#organization",
+                "name": "Example Org",
+                "url": "https://example.com/",
+                "logo": {
+                    "@type": "ImageObject",
+                    "@id": "https://example.com/#logo",
+                    "url": "https://example.com/logo.png"
+                }
+            },
+            {
+                "@type": "WebPage",
+                "@id": "https://example.com/graph-page",
+                "isPartOf": {
+                    "@id": "https://example.com/#website"
+                },
+                "breadcrumb": {
+                    "@id": "https://example.com/graph-page#breadcrumb"
+                }
+            }
+        ]
+    }
+    </script>
+</head>
+<body>
+    <h1>Testing Complex @graph unpacking and nested reference resolution</h1>
+</body>
+</html>

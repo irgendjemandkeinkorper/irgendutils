@@ -8,6 +8,50 @@ const ANSI = {
   reset: '\x1b[0m',
 };
 
+export function redactSecrets(obj, env = process.env) {
+  const secretValues = new Set();
+  const secretKeys = ['PASSWORD', 'SECRET', 'TOKEN', 'KEY', 'AUTH', 'PASS', 'PWD'];
+  for (const [key, value] of Object.entries(env)) {
+    if (value && value.length >= 3) {
+      if (secretKeys.some(k => key.toUpperCase().includes(k))) {
+        if (!key.toUpperCase().includes('PATH') && !key.toUpperCase().includes('FILE') && !key.toUpperCase().includes('DIR')) {
+          secretValues.add(value);
+        }
+      }
+    }
+  }
+
+  const redactString = (str) => {
+    if (typeof str !== 'string') return str;
+    let current = str;
+    for (const secret of secretValues) {
+      current = current.split(secret).join('[REDACTED]');
+    }
+    current = current.replace(/(https?:\/\/)([^:@]+):([^@]+)(@)/g, '$1$2:[REDACTED]$4');
+    return current;
+  };
+
+  const redactValue = (val) => {
+    if (val === null || val === undefined) return val;
+    if (typeof val === 'string') return redactString(val);
+    if (Array.isArray(val)) return val.map(redactValue);
+    if (typeof val === 'object') {
+      const copy = {};
+      for (const [k, v] of Object.entries(val)) {
+        if (secretKeys.some(key => k.toUpperCase().includes(key)) && typeof v === 'string') {
+          copy[k] = '[REDACTED]';
+        } else {
+          copy[k] = redactValue(v);
+        }
+      }
+      return copy;
+    }
+    return val;
+  };
+
+  return redactValue(obj);
+}
+
 export function formatTable(run, opts = {}) {
   const useColor = opts.color ?? false;
   const paint = (code, s) => (useColor ? ANSI[code] + s + ANSI.reset : s);
@@ -48,19 +92,27 @@ export function formatTable(run, opts = {}) {
   lines.push(
     `${verdict}  ${s.passed}/${s.total} passed, ${s.failed} failed, ${s.warnings} warning${s.warnings === 1 ? '' : 's'}  ${paint('dim', `(${run.durationMs}ms against ${run.target})`)}`,
   );
-  return lines.join('\n');
+  return redactSecrets(lines.join('\n'));
 }
 
 export function buildResultsJson(run, opts = {}) {
   const generatedAt = opts.generatedAt ?? new Date().toISOString();
-  return {
-    tool: '@irgendutils/post-deploy-smoke-test',
-    target: run.target,
-    generated_at: generatedAt,
-    ok: run.ok,
-    duration_ms: run.durationMs,
-    summary: run.summary,
-    checks: run.results.map((r) => ({
+  const startTime = opts.startTime ?? new Date(Date.now() - (run.durationMs || 0)).toISOString();
+
+  const envelope = {
+    contract_version: '1.0.0',
+    tool: {
+      name: '@irgendutils/post-deploy-smoke-test',
+      version: '1.0.0',
+    },
+    status: run.ok ? 'success' : 'failure',
+    summary: {
+      total: run.summary.total,
+      passed: run.summary.passed,
+      failed: run.summary.failed,
+      warnings: run.summary.warnings,
+    },
+    results: run.results.map((r) => ({
       path: r.path,
       url: r.url,
       authed: r.authed ?? false,
@@ -70,5 +122,15 @@ export function buildResultsJson(run, opts = {}) {
       failures: r.failures,
       warnings: r.warnings,
     })),
+    warnings: run.results.flatMap((r) => r.warnings || []),
+    errors: run.results.flatMap((r) => r.failures || []),
+    timing: {
+      start_time: startTime,
+      end_time: generatedAt,
+      duration_ms: run.durationMs,
+    },
+    artifacts: opts.outPath ? [opts.outPath] : [],
   };
+
+  return redactSecrets(envelope, opts.env || process.env);
 }

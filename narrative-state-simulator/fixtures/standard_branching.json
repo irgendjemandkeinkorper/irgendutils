@@ -1,0 +1,73 @@
+{
+  "start_scene": "intro",
+  "variables": {
+    "has_sword": false,
+    "gold": 0
+  },
+  "scenes": {
+    "intro": {
+      "text": "You enter a dark dungeon. You can go left towards the armory or right towards the treasure chamber.",
+      "choices": [
+        {
+          "text": "Go left to the armory",
+          "target": "armory"
+        },
+        {
+          "text": "Go right to the treasure chamber",
+          "target": "treasure_room"
+        }
+      ]
+    },
+    "armory": {
+      "text": "The armory is filled with rusty weapons. You see a glowing sword.",
+      "choices": [
+        {
+          "text": "Take the sword",
+          "target": "intro",
+          "mutations": [
+            {
+              "variable": "has_sword",
+              "operation": "set",
+              "value": true
+            }
+          ]
+        },
+        {
+          "text": "Go back",
+          "target": "intro"
+        }
+      ]
+    },
+    "treasure_room": {
+      "text": "A giant dragon guards a pile of gold.",
+      "choices": [
+        {
+          "text": "Fight the dragon with your sword",
+          "target": "victory",
+          "condition": {
+            "variable": "has_sword",
+            "operator": "==",
+            "value": true
+          }
+        },
+        {
+          "text": "Sneak past the dragon (dangerous)",
+          "target": "dragon_food",
+          "condition": {
+            "variable": "has_sword",
+            "operator": "==",
+            "value": false
+          }
+        }
+      ]
+    },
+    "victory": {
+      "text": "You slay the dragon and claim the gold! You win!",
+      "terminal": true
+    },
+    "dragon_food": {
+      "text": "Without a sword, you are easily defeated by the dragon. Game Over.",
+      "terminal": true
+    }
+  }
+}

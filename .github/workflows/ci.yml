@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: Detect Changed Packages
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_tests: ${{ steps.set-matrix.outputs.has_tests }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for accurate git diff
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Package Detector
+        id: set-matrix
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          GITHUB_BEFORE_REF: ${{ github.event.before }}
+        run: |
+          node scripts/detect-ci-matrix.mjs
+
+  test:
+    name: test (${{ matrix.package }})
+    needs: detect
+    if: ${{ needs.detect.outputs.has_tests == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "Found package-lock.json, running npm ci"
+            npm ci
+          else
+            echo "No package-lock.json found, running npm install"
+            npm install
+          fi
+
+      - name: Install Playwright browser
+        if: ${{ hashFiles(format('{0}/package.json', matrix.package)) != '' }}
+        run: |
+          if grep -q '"playwright"' package.json; then
+            npx playwright install chromium
+          fi
+
+      - name: Run tests
+        run: npm test

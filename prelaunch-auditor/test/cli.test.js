@@ -27,9 +27,19 @@ function runCli(args) {
   return { ...res, scorecard, htmlExists }
 }
 
+function assertStatus(r, expected) {
+  if (r.status !== expected) {
+    assert.fail(
+      `Expected exit code ${expected} but got ${r.status}.\n\n` +
+      `--- STDOUT ---\n${r.stdout || ''}\n\n` +
+      `--- STDERR ---\n${r.stderr || ''}`
+    );
+  }
+}
+
 test('run --fixture clean: exits 0, writes scorecard.json + scorecard.html', () => {
   const r = runCli(['run', '--fixture', fixture('clean')])
-  assert.equal(r.status, 0, r.stdout + r.stderr)
+  assertStatus(r, 0)
   assert.match(r.stdout, /READY/)
   assert.equal(r.scorecard.pass, true)
   assert.equal(r.scorecard.summary.blocker, 0)
@@ -38,7 +48,7 @@ test('run --fixture clean: exits 0, writes scorecard.json + scorecard.html', () 
 
 test('run --fixture broken: exits 1, lists blockers in the console summary', () => {
   const r = runCli(['run', '--fixture', fixture('broken')])
-  assert.equal(r.status, 1)
+  assertStatus(r, 1)
   assert.match(r.stdout, /NOT READY/)
   assert.match(r.stdout, /BLOCKER/)
   assert.equal(r.scorecard.pass, false)
@@ -53,13 +63,13 @@ test('--only filters categories end-to-end', () => {
 
 test('--only with an unknown check exits 2', () => {
   const r = runCli(['run', '--fixture', fixture('clean'), '--only', 'seo,nonsense'])
-  assert.equal(r.status, 2)
+  assertStatus(r, 2)
   assert.match(r.stderr, /unknown check/i)
 })
 
 test('--json prints the scorecard to stdout', () => {
   const r = runCli(['run', '--fixture', fixture('clean'), '--json'])
-  assert.equal(r.status, 0)
+  assertStatus(r, 0)
   const parsed = JSON.parse(r.stdout)
   assert.equal(parsed.tool, '@irgendutils/prelaunch-auditor')
   assert.equal(parsed.pass, true)
@@ -67,24 +77,24 @@ test('--json prints the scorecard to stdout', () => {
 
 test('run with neither a URL nor --fixture exits 2 with a usage hint', () => {
   const r = runCli(['run'])
-  assert.equal(r.status, 2)
+  assertStatus(r, 2)
   assert.match(r.stderr, /Usage: audit run/)
 })
 
 test('unknown command exits 2', () => {
   const r = runCli(['bogus'])
-  assert.equal(r.status, 2)
+  assertStatus(r, 2)
   assert.match(r.stderr, /Unknown command/)
 })
 
 test('--help prints usage and exits 0', () => {
   const r = runCli(['--help'])
-  assert.equal(r.status, 0)
+  assertStatus(r, 0)
   assert.match(r.stdout, /audit run/)
 })
 
 test('missing fixture directory exits 2 with a clear error', () => {
   const r = runCli(['run', '--fixture', join(appDir, 'test', 'fixtures', 'nope')])
-  assert.equal(r.status, 2)
+  assertStatus(r, 2)
   assert.match(r.stderr, /Error:/)
 })
