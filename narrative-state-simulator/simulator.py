@@ -8,27 +8,23 @@ class StoryState:
     """
     def __init__(self, scene_id: str, variables: Dict[str, Any]):
         self.scene_id = scene_id
-        # Convert dictionary to immutable items.
-        # Performance optimization: Removing redundant sorted() operations in frozenset
-        # constructions since frozenset is order-independent and does not require sorted inputs.
-        frozen_items = [(k, self._freeze_val(v)) for k, v in variables.items()]
-        self.variables = frozenset(frozen_items)
-
-        # Performance optimization: Cache the dictionary representation of state variables
-        # during initialization to avoid repetitive dict() instantiation inside the hot BFS loop
-        # (e.g., when evaluating conditions or applying mutations).
-        self._dict_cache = dict(frozen_items)
+        # Performance optimization: Pre-sort variables once on init for fast, stable sorting keys later
+        self._sorted_variables = tuple(sorted((k, self._freeze_val(v)) for k, v in variables.items()))
+        self.variables = frozenset(self._sorted_variables)
+        # Performance optimization: Cache dict representation for fast retrieval in hot loops
+        self._dict = dict(self._sorted_variables)
 
     def _freeze_val(self, val: Any) -> Any:
         if isinstance(val, list):
             return tuple(self._freeze_val(x) for x in val)
         if isinstance(val, dict):
-            # Performance optimization: Avoid redundant sorted() for nested dictionaries
+            # Performance optimization: Construct frozenset directly without redundant sorting
             return frozenset((k, self._freeze_val(v)) for k, v in val.items())
         return val
 
     def to_dict(self) -> Dict[str, Any]:
-        return self._dict_cache
+        # Performance optimization: Return cached shallow copy to prevent mutation
+        return self._dict.copy()
 
     def __hash__(self) -> int:
         return hash((self.scene_id, self.variables))
@@ -108,9 +104,11 @@ def apply_mutations(mutations: Optional[List[Dict[str, Any]]], variables: Dict[s
     """
     Applies state mutations to a copy of the variables and returns the new variables dict.
     """
-    new_vars = dict(variables)
+    # Performance optimization: Check for empty or missing mutations first
+    # to avoid redundant dict cloning
     if not mutations:
-        return new_vars
+        return variables
+    new_vars = dict(variables)
 
     for mut in mutations:
         if not isinstance(mut, dict):
@@ -319,12 +317,15 @@ class NarrativeSimulator:
                 if not target or target not in self.scenes:
                     continue
 
-                is_valid = evaluate_condition(cond, state.to_dict())
+                # Performance optimization: Pass the private cached read-only dict
+                # directly to evaluate_condition and apply_mutations to avoid
+                # continuous dictionary copying/allocations inside the hot loop.
+                is_valid = evaluate_condition(cond, state._dict)
                 if (state.scene_id, idx) in choice_evaluations:
                     choice_evaluations[(state.scene_id, idx)].append(is_valid)
 
                 if is_valid:
-                    next_vars = apply_mutations(choice.get("mutations"), state.to_dict())
+                    next_vars = apply_mutations(choice.get("mutations"), state._dict)
                     next_state = StoryState(target, next_vars)
 
                     # Record edge
@@ -342,6 +343,14 @@ class NarrativeSimulator:
 
         # --- Dynamic Analysis Metrics ---
 
+        # Precompute states with outgoing edges for O(1) checks
+        states_with_outgoing = {edge[0] for edge in stg_edges}
+
+        # Pre-group visited states by scene_id to avoid repetitive O(S * V) iterations
+        states_by_scene: Dict[str, List[StoryState]] = {}
+        for st in visited_states:
+            states_by_scene.setdefault(st.scene_id, []).append(st)
+
         # 1. Reachable & Unreachable Scenes
         reachable_scenes = sorted(list({st.scene_id for st in visited_states}))
         unreachable_scenes = sorted(list(set(self.scenes.keys()) - set(reachable_scenes)))
@@ -354,6 +363,10 @@ class NarrativeSimulator:
         # A visited state is a non-terminal dead end if:
         # - Its scene is NOT terminal
         # - It has no outgoing edges in the STG (no choices defined, or all choice conditions failed)
+
+        # Performance optimization: Precompute parents set to make outgoing transition checks O(1)
+        states_with_outgoing = {edge[0] for edge in stg_edges}
+
         dead_end_states: List[StoryState] = []
         for state in visited_states:
             s_def = self.scenes.get(state.scene_id)
@@ -362,9 +375,8 @@ class NarrativeSimulator:
             if s_def.get("terminal"):
                 continue
 
-            # Check if there are any successfully navigated transitions out of this state
-            has_outgoing = any(edge[0] == state for edge in stg_edges)
-            if not has_outgoing:
+            # Performance optimization: Fast O(1) set check instead of O(E) search
+            if state not in states_with_outgoing:
                 dead_end_states.append(state)
 
         # 4. Soft Locks
@@ -392,9 +404,10 @@ class NarrativeSimulator:
 
         # Soft locks are visited states that are NOT successful and NOT themselves terminal
         # (Since if they are terminal, they successfully reached a terminal state).
+        # Performance optimization: Use cached _sorted_variables for stable ordering key
         soft_lock_states = sorted(
             [st for st in visited_states if st not in successful_states],
-            key=lambda x: (x.scene_id, sorted(list(x.variables)))
+            key=lambda x: (x.scene_id, x._sorted_variables)
         )
 
         # 5. Impossible Conditions
@@ -417,21 +430,27 @@ class NarrativeSimulator:
         impossible_conditions.sort(key=lambda x: (x["scene"], x["choice_index"]))
 
         # 6. Shortest Witness Paths to Scenes
+        # Performance optimization: Pre-group states by scene_id to avoid repeated full iterations
+        states_by_scene: Dict[str, List[StoryState]] = {}
+        for st in visited_states:
+            states_by_scene.setdefault(st.scene_id, []).append(st)
+
         scene_witness_paths = {}
         for scene_id in reachable_scenes:
-            states_for_scene = [st for st in visited_states if st.scene_id == scene_id]
-            best_state = min(states_for_scene, key=lambda st: len(visited_states[st]))
-            scene_witness_paths[scene_id] = visited_states[best_state]
+            states_for_scene = states_by_scene.get(scene_id, [])
+            if states_for_scene:
+                best_state = min(states_for_scene, key=lambda st: len(visited_states[st]))
+                scene_witness_paths[scene_id] = visited_states[best_state]
 
-        # Format dead ends to include witness paths
+        # Format dead ends to include witness paths (sorted stably using precomputed keys)
+        dead_end_states.sort(key=lambda st: (st.scene_id, st._sorted_variables))
         formatted_dead_ends = []
-        for st in dead_end_states:
+        for st in sorted(dead_end_states, key=lambda st: (st.scene_id, st._sorted_variables)):
             formatted_dead_ends.append({
                 "scene": st.scene_id,
                 "variables": st.to_dict(),
                 "witness_path": visited_states[st]
             })
-        formatted_dead_ends.sort(key=lambda x: (x["scene"], sorted(list(x["variables"].items()))))
 
         # Format soft locks to include witness paths
         formatted_soft_locks = []
@@ -443,8 +462,9 @@ class NarrativeSimulator:
             })
 
         # Format edges for DOT generation
+        # Performance optimization: Use cached _sorted_variables instead of sorting elements dynamically
         formatted_edges = []
-        for parent, child, idx, text in sorted(stg_edges, key=lambda e: (e[0].scene_id, sorted(list(e[0].variables)), e[1].scene_id, sorted(list(e[1].variables)), e[2])):
+        for parent, child, idx, text in sorted(stg_edges, key=lambda e: (e[0].scene_id, e[0]._sorted_variables, e[1].scene_id, e[1]._sorted_variables, e[2])):
             formatted_edges.append({
                 "from_scene": parent.scene_id,
                 "from_variables": parent.to_dict(),
