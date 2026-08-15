@@ -28,6 +28,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Guard sensitive tracked files
+        run: node scripts/check-sensitive-files.mjs
+
       - name: Run Package Detector
         id: set-matrix
         env:
