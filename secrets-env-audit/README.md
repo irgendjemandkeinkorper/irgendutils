@@ -57,11 +57,13 @@ Useful flags:
 - **Pattern Matching:** Detects structured credentials such as AWS keys, Google API keys, Stripe tokens, GitHub Personal Access Tokens (PATs), Database connection strings, and WordPress Salts.
 - **High-Entropy Scanner:** Analyzes source files for randomized high-entropy strings (such as private encryption keys or generic passwords) that don't match typical keywords.
 - **Git History Auditing:** Searches your **entire git commit history** to find secrets that were deleted from active files but still reside in older commits.
+- **Supported source files:** The default scan walks text files in configured roots, including Python (`*.py`), JavaScript/TypeScript, PHP, YAML, JSON, shell, and configuration files. Binary files, lockfiles, examples, and configured ignore paths are skipped as appropriate.
 
 ### 2. Environment Drift (`drift.js`)
 - Loads multiple environment variables from specified files (e.g. `.env`, `.env.staging`, `.env.prod`).
 - Calculates the **union of all keys** across files and reports missing keys in each environment.
 - **Shape Comparison:** Safely evaluates and alerts if variable structures differ between files (e.g. if a variable is configured as a `bool` in staging but as a `number` or empty in production) without ever revealing the underlying secret values.
+- **Python package coverage:** Python projects may declare `.env`, `.env.local`, or other environment files in `env_drift.envs` exactly like Node projects. The current Python utilities do not ship an `.env.example`; when one is added, list it explicitly alongside the corresponding local/staging files.
 
 ### 3. Public Web Exposure Probe (`webprobe.js`)
 - Probes target domain URLs to verify if configuration and source control structures are exposed to the public internet.
