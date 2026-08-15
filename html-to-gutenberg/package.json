@@ -21,7 +21,12 @@
     "html",
     "converter"
   ],
-  "dependencies": {
-    "playwright": "1.61.1"
+  "peerDependencies": {
+    "playwright": "^1.61.1"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
   }
 }

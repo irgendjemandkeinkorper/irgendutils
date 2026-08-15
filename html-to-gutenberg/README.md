@@ -9,12 +9,13 @@ h2g convert input.html --push --status draft
 
 ## Install
 
-Requires Node.js ≥ 18 ESM.
+Requires Node.js ≥ 18 ESM. Playwright is an optional peer dependency used only by `h2g verify`; conversion and push workflows do not load it.
 
 ```sh
 cd html-to-gutenberg
 npm install
-# Playwright is required only for the `verify` command
+# Optional: install Playwright only if you use `verify`.
+npm install playwright
 npx playwright install chromium
 npm link                               # optional: `h2g` on PATH
 # or just: node src/cli.js
@@ -99,6 +100,8 @@ convert:
 6. **Verify:** `src/verify.js` opens Playwright, logs into WordPress (using the Application Password or saved storage state), loads the page in the block editor, and verifies that the blocks parsed successfully.
 
 ## Render Verification (Playwright)
+
+Playwright is intentionally optional so users who only convert or push content do not install a browser-automation stack. Install it explicitly before using `h2g verify`; the CLI loads the adapter lazily and reports the install command if it is missing.
 
 To guarantee the conversion was perfect, `h2g verify` automates a browser to check for:
 - **Zero Block-Recovery Alerts:** Asserts that the editor did not trigger "This block contains unexpected or invalid content" or show "Block Recovery" prompts.

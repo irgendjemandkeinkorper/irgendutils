@@ -121,7 +121,15 @@ async function cmdConvert(input, values, config) {
 }
 
 async function cmdVerify(target, values, config) {
-  const { createPlaywrightAdapter } = await import('./adapters/playwright.js');
+  let createPlaywrightAdapter;
+  try {
+    ({ createPlaywrightAdapter } = await import('./adapters/playwright.js'));
+  } catch (err) {
+    if (err.code === 'ERR_MODULE_NOT_FOUND' && err.message.includes('playwright')) {
+      throw new Error('Playwright is optional and required only for verify; install it with `npm install playwright` and run `npx playwright install chromium`.');
+    }
+    throw err;
+  }
   const adapter = createPlaywrightAdapter({
     baseUrl: process.env.WP_BASE_URL || config.wp?.base_url,
     user: process.env.H2G_EDITOR_USER,
