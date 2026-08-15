@@ -85,9 +85,9 @@ jobs:
         run: |
           if [ "${{ matrix.language }}" = "python" ]; then
             PKG="${{ matrix.package }}"
+            cd "$GITHUB_WORKSPACE"
             if [ -d "$PKG/src" ]; then export PYTHONPATH="$GITHUB_WORKSPACE/$PKG/src:$GITHUB_WORKSPACE/$PKG:$PYTHONPATH"; fi
             if [ -d "$PKG/tests" ]; then TEST_DIR=tests; else TEST_DIR=test; fi
-            cd "$GITHUB_WORKSPACE"
             python -m unittest discover -s "$PKG/$TEST_DIR" -p 'test_*.py'
           else
             npm test
