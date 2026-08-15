@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { scanProjects } from '../src/run.js';
+import { FixtureAdapter } from '../src/adapters/fixture.js';
 
 test('dependency-update-digest runner with NetworkOrchestrator integration', async (t) => {
 
@@ -71,4 +72,16 @@ test('dependency-update-digest runner with NetworkOrchestrator integration', asy
     assert.strictEqual(result.projects.length, 3);
     assert.deepStrictEqual(result.projects, ['ProjA', 'ProjB', 'ProjC']);
   });
+});
+
+test('normalizes outdated and vulnerable Python requirements fixtures', async () => {
+  const adapter = new FixtureAdapter('test/fixtures');
+  const result = await scanProjects(
+    { projects: [{ name: 'PythonTool', types: ['pip'] }] },
+    adapter,
+  );
+  assert.equal(result.errors.length, 0);
+  assert.deepEqual(result.rows.map((row) => row.package), ['requests', 'urllib3']);
+  assert.equal(result.rows.find((row) => row.package === 'requests').jump, 'minor');
+  assert.equal(result.rows.find((row) => row.package === 'urllib3').security, true);
 });

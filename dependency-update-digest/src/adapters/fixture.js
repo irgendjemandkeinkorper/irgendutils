@@ -36,6 +36,14 @@ export class FixtureAdapter {
     return this.read(project, 'npm-audit.json', { vulnerabilities: {} });
   }
 
+  async pipOutdated(project) {
+    return this.read(project, 'pip-outdated.json', []);
+  }
+
+  async pipAudit(project) {
+    return this.read(project, 'pip-audit.json', []);
+  }
+
   async wpPluginList(project) {
     return this.read(project, 'wp-plugins.json', []);
   }

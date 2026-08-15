@@ -101,6 +101,35 @@ export function normalizeNpm(project, outdatedJson, auditJson, { deep = false } 
 }
 
 // ---------------------------------------------------------------------------
+// Python / pip
+// `python -m pip list --outdated --format=json` -> [{ name, version, latest_version }]
+// `pip-audit --format=json` -> [{ name, version, vulns: [{ id, fix_versions, description }] }]
+export function normalizePip(project, outdatedJson, auditJson) {
+  const rows = new Map();
+  for (const item of outdatedJson ?? []) {
+    if (!item?.name) continue;
+    rows.set(item.name, makeRow(project, 'pip', item.name, item.version, item.latest_version));
+  }
+  for (const item of auditJson ?? []) {
+    if (!item?.name) continue;
+    let row = rows.get(item.name);
+    if (!row) {
+      row = makeRow(project, 'pip', item.name, item.version, null);
+      rows.set(item.name, row);
+    }
+    for (const vuln of item.vulns ?? []) {
+      attachAdvisory(row, {
+        source: 'pip-audit',
+        id: vuln.id || null,
+        title: vuln.description || `Known vulnerability in ${item.name}`,
+        severity: vuln.severity || 'unknown',
+      });
+    }
+  }
+  return [...rows.values()];
+}
+
+// ---------------------------------------------------------------------------
 // WordPress
 // `wp plugin list --update=available --format=json`
 //   -> [{ name, status, update, version, update_version }]

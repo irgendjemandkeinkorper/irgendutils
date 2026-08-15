@@ -1,19 +1,20 @@
 # @irgendutils/dependency-update-digest
 
-Aggregate, classify, and digest outdated dependencies across multiple projects and package managers (Composer, npm, and WordPress plugins/themes) into a single actionable report.
+Aggregate, classify, and digest outdated dependencies across multiple projects and package managers (Composer, npm, pip/requirements.txt, and WordPress plugins/themes) into a single actionable report.
 
 **Read-only and risk-free.** This tool never updates package files, never installs modules, and never modifies files. It parses native outputs to help you separate urgent security patches and major-version jumps from routine minor/patch releases.
 
 ```
           dependency-update-digest (depdigest)
                 ├── npm outdated (JavaScript)
+                ├── pip list / pip-audit (Python)
                 ├── composer outdated (PHP)
                 └── wp plugin/theme list (WordPress)
 ```
 
 ## Install
 
-Requires Node.js ≥ 18 ESM, and the native package managers (`npm`, `composer`, or `wp-cli`) depending on the projects you wish to audit.
+Requires Node.js ≥ 18 ESM, and the native package managers (`npm`, `python`/`pip`, `composer`, or `wp-cli`) depending on the projects you wish to audit. Python projects use `pip list --outdated` and optionally `pip-audit`.
 
 ```sh
 cd dependency-update-digest
@@ -33,6 +34,9 @@ npm link                               # optional: `depdigest` on PATH
      - name: Acme Backend
        path: /var/www/acme/backend
        types: [composer]
+     - name: Acme Python Tool
+       path: /var/www/acme/python-tool
+       types: [pip]
      - name: Acme WordPress
        wp_rest: https://acme-site.com
        app_password_env: WP_APP_PASSWORD

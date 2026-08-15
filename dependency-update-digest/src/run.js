@@ -10,7 +10,7 @@
 // Real adapters (shelling out / WP REST) live in src/adapters/ and are
 // import()ed lazily so tests and offline runs never touch them.
 
-import { normalizeComposer, normalizeNpm, normalizeWp } from './normalize.js';
+import { normalizeComposer, normalizeNpm, normalizePip, normalizeWp } from './normalize.js';
 import { NetworkOrchestrator } from '../../shared/network-orchestrator.js';
 
 export async function createAdapter(opts = {}) {
@@ -63,6 +63,10 @@ export async function scanProjects(config, adapter, opts = {}) {
             const outdated = await adapter.npmOutdated(job.project, opts);
             const audit = await adapter.npmAudit(job.project, opts);
             results.push(...normalizeNpm(job.project.name, outdated, audit, { deep: opts.deep }));
+          } else if (job.type === 'pip') {
+            const outdated = await adapter.pipOutdated(job.project, opts);
+            const audit = await adapter.pipAudit(job.project, opts);
+            results.push(...normalizePip(job.project.name, outdated, audit));
           } else if (job.type === 'wp') {
             const plugins = await adapter.wpPluginList(job.project, opts);
             const vulns = await adapter.wpVulns(job.project, opts);

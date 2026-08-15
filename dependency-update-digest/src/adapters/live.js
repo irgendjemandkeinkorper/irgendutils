@@ -88,6 +88,14 @@ export class LiveAdapter {
     );
   }
 
+  async pipOutdated(project) {
+    return (await runJson('python', ['-m', 'pip', 'list', '--outdated', '--format=json'], this.cwd(project), this)) ?? [];
+  }
+
+  async pipAudit(project) {
+    return (await runJson('pip-audit', ['--format=json'], this.cwd(project), this)) ?? [];
+  }
+
   async wpPluginList(project) {
     if (project.wp_rest) return this.wpRestPluginList(project);
     return (

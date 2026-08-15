@@ -1,0 +1,7 @@
+[
+  {
+    "name": "urllib3",
+    "version": "1.26.4",
+    "vulns": [{"id": "CVE-2023-43804", "description": "Cookie header leakage across redirects."}]
+  }
+]
