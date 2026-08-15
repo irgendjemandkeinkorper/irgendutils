@@ -15,3 +15,11 @@
 ## 2025-02-15 - Hot loop object allocation in custom parser
 **Learning:** Instantiating temporary collection objects (such as `new Set(...)`) inside tight, recursive, or sequential processing hot loops (like custom HTML/XML/AST parsers) creates major performance bottlenecks due to continuous heap allocation and garbage collection.
 **Action:** Always extract lookup tables and sets to the module or top-level scope when the elements are static. This yields up to a ~40% execution speedup with zero logic changes.
+
+## 2025-02-17 - Slicing and indexOf outperform RegExp engine for basic text scanning in JIT-optimized JS engines
+**Learning:** For scanning basic text boundaries (such as finding the next `<` character in an HTML parser), standard string methods like `indexOf('<')` and `slice` significantly outperform sticky regular expressions (like `/[^<]+/y`). This is because V8's `indexOf` is a highly-optimized C++/SIMD primitive, and standard string slices can be optimized via sliced pointers. The RegExp engine (`exec`), on the other hand, incurs setup overhead and allocates a match array on every invocation, which is a major bottleneck when run on every text chunk.
+**Action:** Use standard `indexOf` and `slice` for basic sequential character/boundary scanning, and restrict RegExp caching optimizations to complex token groups or dynamic/escaped patterns.
+
+## 2025-05-20 - Indexing lookups for O(N*M) candidate matching in migration generators
+**Learning:** Performing linear scans across all destination pages for each source page in URL migration generators creates an O(N * M) bottleneck. Pre-building Map indexes for path, slug, and clean title during destination initialization reduces lookups to O(1) per source page. Additionally, maintaining a per-page Set (`matchedDestsForPage`) prevents duplicate candidate lookups and preserves strict strategy priority tiers (exact_path > canonical > slug > title).
+**Action:** Always pre-index candidate items into Map lookups when performing multi-attribute matching across large datasets, using a Set to preserve matching precedence per target item.
