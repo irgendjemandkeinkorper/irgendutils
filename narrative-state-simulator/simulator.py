@@ -343,6 +343,14 @@ class NarrativeSimulator:
 
         # --- Dynamic Analysis Metrics ---
 
+        # Precompute states with outgoing edges for O(1) checks
+        states_with_outgoing = {edge[0] for edge in stg_edges}
+
+        # Pre-group visited states by scene_id to avoid repetitive O(S * V) iterations
+        states_by_scene: Dict[str, List[StoryState]] = {}
+        for st in visited_states:
+            states_by_scene.setdefault(st.scene_id, []).append(st)
+
         # 1. Reachable & Unreachable Scenes
         reachable_scenes = sorted(list({st.scene_id for st in visited_states}))
         unreachable_scenes = sorted(list(set(self.scenes.keys()) - set(reachable_scenes)))
@@ -428,12 +436,14 @@ class NarrativeSimulator:
             states_by_scene.setdefault(st.scene_id, []).append(st)
 
         scene_witness_paths = {}
-        for scene_id, states_for_scene in states_by_scene.items():
-            best_state = min(states_for_scene, key=lambda st: len(visited_states[st]))
-            scene_witness_paths[scene_id] = visited_states[best_state]
+        for scene_id in reachable_scenes:
+            states_for_scene = states_by_scene.get(scene_id, [])
+            if states_for_scene:
+                best_state = min(states_for_scene, key=lambda st: len(visited_states[st]))
+                scene_witness_paths[scene_id] = visited_states[best_state]
 
-        # Format dead ends to include witness paths
-        # Performance optimization: Sort the list using pre-cached variables tuple for speed
+        # Format dead ends to include witness paths (sorted stably using precomputed keys)
+        dead_end_states.sort(key=lambda st: (st.scene_id, st._sorted_variables))
         formatted_dead_ends = []
         for st in sorted(dead_end_states, key=lambda st: (st.scene_id, st._sorted_variables)):
             formatted_dead_ends.append({
