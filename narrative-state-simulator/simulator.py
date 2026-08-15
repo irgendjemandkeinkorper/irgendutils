@@ -8,18 +8,20 @@ class StoryState:
     """
     def __init__(self, scene_id: str, variables: Dict[str, Any]):
         self.scene_id = scene_id
-        # Convert dictionary to sorted, immutable items
-        self.variables = frozenset(sorted((k, self._freeze_val(v)) for k, v in variables.items()))
+        # Precompute sorted variables to avoid redundant sorting in hot loops and metrics/formatting loops
+        self._sorted_variables = tuple(sorted((k, self._freeze_val(v)) for k, v in variables.items()))
+        self.variables = frozenset(self._sorted_variables)
+        self._dict = dict(self._sorted_variables)
 
     def _freeze_val(self, val: Any) -> Any:
         if isinstance(val, list):
             return tuple(self._freeze_val(x) for x in val)
         if isinstance(val, dict):
-            return frozenset(sorted((k, self._freeze_val(v)) for k, v in val.items()))
+            return frozenset((k, self._freeze_val(v)) for k, v in val.items())
         return val
 
     def to_dict(self) -> Dict[str, Any]:
-        return dict(self.variables)
+        return self._dict.copy()
 
     def __hash__(self) -> int:
         return hash((self.scene_id, self.variables))
@@ -99,9 +101,9 @@ def apply_mutations(mutations: Optional[List[Dict[str, Any]]], variables: Dict[s
     """
     Applies state mutations to a copy of the variables and returns the new variables dict.
     """
-    new_vars = dict(variables)
     if not mutations:
-        return new_vars
+        return variables
+    new_vars = dict(variables)
 
     for mut in mutations:
         if not isinstance(mut, dict):
@@ -333,6 +335,14 @@ class NarrativeSimulator:
 
         # --- Dynamic Analysis Metrics ---
 
+        # Precompute states with outgoing edges for O(1) checks
+        states_with_outgoing = {edge[0] for edge in stg_edges}
+
+        # Pre-group visited states by scene_id to avoid repetitive O(S * V) iterations
+        states_by_scene: Dict[str, List[StoryState]] = {}
+        for st in visited_states:
+            states_by_scene.setdefault(st.scene_id, []).append(st)
+
         # 1. Reachable & Unreachable Scenes
         reachable_scenes = sorted(list({st.scene_id for st in visited_states}))
         unreachable_scenes = sorted(list(set(self.scenes.keys()) - set(reachable_scenes)))
@@ -354,8 +364,7 @@ class NarrativeSimulator:
                 continue
 
             # Check if there are any successfully navigated transitions out of this state
-            has_outgoing = any(edge[0] == state for edge in stg_edges)
-            if not has_outgoing:
+            if state not in states_with_outgoing:
                 dead_end_states.append(state)
 
         # 4. Soft Locks
@@ -385,7 +394,7 @@ class NarrativeSimulator:
         # (Since if they are terminal, they successfully reached a terminal state).
         soft_lock_states = sorted(
             [st for st in visited_states if st not in successful_states],
-            key=lambda x: (x.scene_id, sorted(list(x.variables)))
+            key=lambda x: (x.scene_id, x._sorted_variables)
         )
 
         # 5. Impossible Conditions
@@ -410,11 +419,13 @@ class NarrativeSimulator:
         # 6. Shortest Witness Paths to Scenes
         scene_witness_paths = {}
         for scene_id in reachable_scenes:
-            states_for_scene = [st for st in visited_states if st.scene_id == scene_id]
-            best_state = min(states_for_scene, key=lambda st: len(visited_states[st]))
-            scene_witness_paths[scene_id] = visited_states[best_state]
+            states_for_scene = states_by_scene.get(scene_id, [])
+            if states_for_scene:
+                best_state = min(states_for_scene, key=lambda st: len(visited_states[st]))
+                scene_witness_paths[scene_id] = visited_states[best_state]
 
-        # Format dead ends to include witness paths
+        # Format dead ends to include witness paths (sorted stably using precomputed keys)
+        dead_end_states.sort(key=lambda st: (st.scene_id, st._sorted_variables))
         formatted_dead_ends = []
         for st in dead_end_states:
             formatted_dead_ends.append({
@@ -422,7 +433,6 @@ class NarrativeSimulator:
                 "variables": st.to_dict(),
                 "witness_path": visited_states[st]
             })
-        formatted_dead_ends.sort(key=lambda x: (x["scene"], sorted(list(x["variables"].items()))))
 
         # Format soft locks to include witness paths
         formatted_soft_locks = []
@@ -433,9 +443,9 @@ class NarrativeSimulator:
                 "witness_path": visited_states[st]
             })
 
-        # Format edges for DOT generation
+        # Format edges for DOT generation (using precomputed _sorted_variables to avoid sorting on every edge comparison)
         formatted_edges = []
-        for parent, child, idx, text in sorted(stg_edges, key=lambda e: (e[0].scene_id, sorted(list(e[0].variables)), e[1].scene_id, sorted(list(e[1].variables)), e[2])):
+        for parent, child, idx, text in sorted(stg_edges, key=lambda e: (e[0].scene_id, e[0]._sorted_variables, e[1].scene_id, e[1]._sorted_variables, e[2])):
             formatted_edges.append({
                 "from_scene": parent.scene_id,
                 "from_variables": parent.to_dict(),
