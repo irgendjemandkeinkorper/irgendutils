@@ -1,0 +1,10 @@
+{
+  "url": "https://example.com/blog-post",
+  "title": "Blog Post Title",
+  "metaDesc": "Welcome to our site",
+  "date": null,
+  "headings": ["H1: Blog Post Title", "H1: Another H1?", "H2: Section", "H4: Deep Nesting"],
+  "links": [
+    "https://example.com/about"
+  ]
+}

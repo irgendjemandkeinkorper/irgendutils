@@ -1,0 +1,19 @@
+{
+  "name": "irgendutils-root",
+  "version": "1.0.0",
+  "description": "Root-level task runner and utility catalog for irgendutils monorepo",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "irgendutils": "./bin/runner.js"
+  },
+  "scripts": {
+    "list": "node bin/runner.js list",
+    "doctor": "node bin/runner.js doctor",
+    "test": "node bin/runner.js test",
+    "run": "node bin/runner.js run"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

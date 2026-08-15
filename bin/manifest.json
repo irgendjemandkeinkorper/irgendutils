@@ -1,0 +1,162 @@
+{
+  "backup-restore-verifier": {
+    "name": "backup-restore-verifier",
+    "title": "Backup Dump + Restore-to-Scratch Verifier",
+    "purpose": "Prove backups work by restoring a dump into a throwaway environment and running integrity + smoke checks.",
+    "stack": ["Node.js", "WP-CLI", "MySQL"],
+    "maturity": "Beta",
+    "safety": "Dry-run by default",
+    "prerequisites": ["node", "wp", "mysql", ".env", "config.yml"],
+    "commands": ["verifybak verify", "verifybak verify --apply"]
+  },
+  "dependency-update-digest": {
+    "name": "dependency-update-digest",
+    "title": "Dependency-Update Digest",
+    "purpose": "Run outdated dependency checks across multiple projects and generate a security-first unified digest.",
+    "stack": ["Node.js", "Composer", "npm"],
+    "maturity": "Beta",
+    "safety": "Read-only",
+    "prerequisites": ["node"],
+    "commands": ["depdigest run"]
+  },
+  "dns-ssl-uptime-monitor": {
+    "name": "dns-ssl-uptime-monitor",
+    "title": "DNS / SSL / Uptime Monitor",
+    "purpose": "Fleet-wide monitoring for expiring TLS certificates, drifted/missing DNS, and site downtime.",
+    "stack": ["Node.js"],
+    "maturity": "Beta",
+    "safety": "Read-only",
+    "prerequisites": ["node", ".env", "config.yml"],
+    "commands": ["monitor check"]
+  },
+  "html-to-gutenberg": {
+    "name": "html-to-gutenberg",
+    "title": "HTML → Gutenberg Blocks",
+    "purpose": "Convert static HTML body content into valid block editor markup and verify render using Playwright.",
+    "stack": ["Node.js", "Playwright", "WP-CLI"],
+    "maturity": "Beta",
+    "safety": "Dry-run by default",
+    "prerequisites": ["node", "wp", ".env", "h2g.config.yml"],
+    "commands": ["h2g convert <file>", "h2g convert <file> --apply"]
+  },
+  "image-convert": {
+    "name": "image-convert",
+    "title": "Image Batch Converter",
+    "purpose": "Batch-convert JPG/PNG/TIFF/HEIC/GIF to WebP/AVIF with downscaling, optimization, and verification decoding.",
+    "stack": ["Node.js", "sharp"],
+    "maturity": "Production",
+    "safety": "Dry-run by default",
+    "prerequisites": ["node"],
+    "commands": ["image-convert <files>", "imgconv <files> --apply"]
+  },
+  "obsidian-vault-forge": {
+    "name": "obsidian-vault-forge",
+    "title": "Obsidian Vault Forge",
+    "purpose": "Scaffold custom, well-linked Obsidian vaults to organize project briefs, assets, meetings, and decisions.",
+    "stack": ["Node.js"],
+    "maturity": "Production",
+    "safety": "Dry-run by default",
+    "prerequisites": ["node", ".env", "project.yml"],
+    "commands": ["vault build", "vault build --apply"]
+  },
+  "post-deploy-smoke-test": {
+    "name": "post-deploy-smoke-test",
+    "title": "Post-Deploy Smoke Test",
+    "purpose": "Quickly verify that critical URLs return the expected status and proof-of-life content to gate deployments.",
+    "stack": ["Node.js"],
+    "maturity": "Production",
+    "safety": "Read-only",
+    "prerequisites": ["node", "smoke.yml"],
+    "commands": ["smoke run", "smoke run --url <target>"]
+  },
+  "prelaunch-auditor": {
+    "name": "prelaunch-auditor",
+    "title": "Pre-launch Auditor",
+    "purpose": "Opinionated pre-launch site readiness scorecard covering SEO, performance, accessibility, security, and WP hygiene.",
+    "stack": ["Node.js", "Playwright", "Lighthouse"],
+    "maturity": "Beta",
+    "safety": "Read-only",
+    "prerequisites": ["node", ".env", "audit.config.yml"],
+    "commands": ["audit run <url>"]
+  },
+  "quick-issue": {
+    "name": "quick-issue",
+    "title": "Quick Issue",
+    "purpose": "Single-file serverless browser app to quickly draft, format, and file templated GitHub issues.",
+    "stack": ["HTML", "Vanilla JS", "CSS"],
+    "maturity": "Production",
+    "safety": "N/A (Browser App)",
+    "prerequisites": [],
+    "commands": ["Open index.html in any browser"]
+  },
+  "repo-template": {
+    "name": "repo-template",
+    "title": "Repo Template Scaffolder",
+    "purpose": "Scaffold new project repositories with standardized directory structures, starter configurations, and templates.",
+    "stack": ["Node.js"],
+    "maturity": "Production",
+    "safety": "Interactive",
+    "prerequisites": ["node"],
+    "commands": ["create-repo", "repo-template"]
+  },
+  "secrets-env-audit": {
+    "name": "secrets-env-audit",
+    "title": "Secrets & Env Auditor",
+    "purpose": "Scan codebases and Git history for committed credentials and inspect system environments for missing/unaligned variables.",
+    "stack": ["Node.js"],
+    "maturity": "Production",
+    "safety": "Read-only",
+    "prerequisites": ["node", ".env", "config.yml"],
+    "commands": ["secaudit scan", "secaudit audit-env"]
+  },
+  "site-migration-scraper": {
+    "name": "site-migration-scraper",
+    "title": "Site Migration Scraper",
+    "purpose": "Crawl legacy websites to extract clean main-body HTML/Markdown content and produce a structured page-inventory manifest.",
+    "stack": ["Node.js", "Playwright"],
+    "maturity": "Spec-only (Beta)",
+    "safety": "Read-only",
+    "prerequisites": ["node"],
+    "commands": ["Crawl site via command line tools (see CLAUDE.md)"]
+  },
+  "sql-slow-query-analyzer": {
+    "name": "sql-slow-query-analyzer",
+    "title": "SQL Slow-Query Analyzer",
+    "purpose": "Parse slow query log files to normalized patterns, rank query performance impacts, and suggest optimal indexes.",
+    "stack": ["Node.js", "MySQL"],
+    "maturity": "Beta",
+    "safety": "Read-only",
+    "prerequisites": ["node", "config.yml"],
+    "commands": ["slowq analyze <logfile>"]
+  },
+  "wp-charset-collation-checker": {
+    "name": "wp-charset-collation-checker",
+    "title": "Charset / Collation Consistency Checker",
+    "purpose": "Detect table and column charset/collation mismatches to prevent mojibake, and generate safe SQL conversion DDL.",
+    "stack": ["Node.js", "MySQL"],
+    "maturity": "Beta",
+    "safety": "Read-only by default (conversion is opt-in)",
+    "prerequisites": ["node", "mysql", ".env", "config.yml"],
+    "commands": ["charset check", "charset convert", "charset convert --apply"]
+  },
+  "wp-qa-playwright": {
+    "name": "wp-qa-playwright",
+    "title": "WP QA (Playwright vs. Template)",
+    "purpose": "Automated regression checks comparing active WordPress sites against target templates for structural, visual, or asset drift.",
+    "stack": ["Node.js", "Playwright"],
+    "maturity": "Production",
+    "safety": "Read-only",
+    "prerequisites": ["node", ".env", "qa.config.yml"],
+    "commands": ["qa run", "qa report"]
+  },
+  "wp-subdomain-spinup": {
+    "name": "wp-subdomain-spinup",
+    "title": "WP Subdomain Spinup",
+    "purpose": "Automated provisioning, DNS registration, staging setup, domain replacement, SSL, and template seeding for fresh subdomains.",
+    "stack": ["Node.js", "WP-CLI", "SSH"],
+    "maturity": "Beta",
+    "safety": "Dry-run by default",
+    "prerequisites": ["node", "wp", "ssh", ".env", "config.yml"],
+    "commands": ["spinup create <name>", "spinup create <name> --apply"]
+  }
+}

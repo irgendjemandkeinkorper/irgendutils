@@ -1,0 +1,43 @@
+{
+  "start_scene": "start",
+  "variables": {
+    "has_key": false
+  },
+  "scenes": {
+    "start": {
+      "text": "Choose your path.",
+      "choices": [
+        {
+          "text": "Go to empty room",
+          "target": "empty_room"
+        },
+        {
+          "text": "Go to locked room",
+          "target": "locked_room"
+        }
+      ]
+    },
+    "empty_room": {
+      "text": "This room is empty. There are no doors.",
+      "choices": []
+    },
+    "locked_room": {
+      "text": "The door is locked tight.",
+      "choices": [
+        {
+          "text": "Unlock and pass",
+          "target": "win",
+          "condition": {
+            "variable": "has_key",
+            "operator": "==",
+            "value": true
+          }
+        }
+      ]
+    },
+    "win": {
+      "text": "You win!",
+      "terminal": true
+    }
+  }
+}

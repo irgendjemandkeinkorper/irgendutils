@@ -12,16 +12,40 @@ import { checkResponsive } from './checks/responsive.js';
 import { visualCheck } from './checks/visual.js';
 import { checkWpHygiene } from './checks/wpHygiene.js';
 import { resolveAuth } from './config.js';
+import { NetworkOrchestrator } from '../../shared/network-orchestrator.js';
 
 // Checks that need the template/reference captured for comparison.
 const NEEDS_TEMPLATE = new Set(['structural', 'visual', 'wp_hygiene']);
 
 /** Fetch a status for each unique link URL through the adapter (deduped). */
-export async function collectLinkStatuses(adapter, links) {
+export async function collectLinkStatuses(adapter, links, options = {}) {
   const statuses = {};
-  for (const link of links) {
-    if (statuses[link.url]) continue;
-    statuses[link.url] = await adapter.fetchStatus(link.url);
+  const uniqueUrls = [...new Set(links.map((l) => l.url))];
+
+  const orchestrator = options.orchestrator ?? new NetworkOrchestrator({
+    globalLimit: options.globalLimit ?? options.concurrency?.global ?? 8,
+    perHostLimit: options.perHostLimit ?? options.concurrency?.perHost ?? 2,
+    cacheEnabled: options.cacheEnabled ?? true,
+    cacheTtlMs: options.cacheTtlMs ?? 600000,
+  });
+
+  const tasks = uniqueUrls.map((url) => ({
+    url,
+    fn: async () => {
+      const stageName = `link:${url}`;
+      orchestrator.startStage(stageName);
+      try {
+        const status = await adapter.fetchStatus(url);
+        return { url, status };
+      } finally {
+        orchestrator.endStage(stageName);
+      }
+    }
+  }));
+
+  const results = await orchestrator.run(tasks);
+  for (const res of results) {
+    statuses[res.url] = res.status;
   }
   return statuses;
 }
@@ -81,7 +105,10 @@ export async function runTarget(adapter, cfg, targetUrl, ctx = {}) {
 
   if (checks.includes('links')) {
     const links = extractLinks(capture.html, pageUrl);
-    const statuses = await collectLinkStatuses(adapter, links);
+    const statuses = await collectLinkStatuses(adapter, links, {
+      globalLimit: cfg.concurrency?.global ?? 8,
+      perHostLimit: cfg.concurrency?.perHost ?? 2,
+    });
     const { findings: lf, brokenCount } = checkLinks(links, statuses, { pageUrl });
     findings.push(...lf);
     perCheck.links = { total: links.length, broken: brokenCount, threshold: cfg.thresholds.max_broken_links };
@@ -148,17 +175,46 @@ export async function runQa(cfg, adapter, opts = {}) {
     }
   }
 
-  const results = [];
-  for (const target of cfg.targets) {
-    const ctx = { ...base };
-    // With no template reference, fall back to a stored baseline for this site.
-    if ((!ctx.referenceShots || Object.keys(ctx.referenceShots).length === 0) && baselines[target]) {
-      ctx.referenceShots = baselines[target];
-      ctx.referenceLabel = 'baseline';
+  const orchestrator = new NetworkOrchestrator({
+    globalLimit: cfg.concurrency?.global ?? opts.globalLimit ?? 4,
+    perHostLimit: cfg.concurrency?.perHost ?? opts.perHostLimit ?? 2,
+    timeoutMs: cfg.timeout_ms ?? opts.timeoutMs ?? 60000,
+    maxRetries: cfg.max_retries ?? opts.maxRetries ?? 2,
+    cacheEnabled: cfg.cache_enabled ?? opts.cacheEnabled ?? false,
+  });
+
+  const tasks = cfg.targets.map((target) => {
+    let host;
+    try {
+      host = new URL(target).hostname;
+    } catch {
+      host = 'default';
     }
-    log(`Checking ${target}`);
-    results.push(await runTarget(adapter, cfg, target, ctx));
-  }
+    return {
+      host,
+      url: target,
+      fn: async () => {
+        const stageName = `target:${target}`;
+        orchestrator.startStage(stageName);
+        try {
+          const ctx = { ...base };
+          // With no template reference, fall back to a stored baseline for this site.
+          if ((!ctx.referenceShots || Object.keys(ctx.referenceShots).length === 0) && baselines[target]) {
+            ctx.referenceShots = baselines[target];
+            ctx.referenceLabel = 'baseline';
+          }
+          log(`Checking ${target}`);
+          const res = await runTarget(adapter, cfg, target, ctx);
+          return res;
+        } finally {
+          orchestrator.endStage(stageName);
+        }
+      }
+    };
+  });
+
+  const results = await orchestrator.run(tasks);
+  const telemetry = orchestrator.getTelemetrySummary();
 
   return {
     pass: results.every((r) => r.pass),
@@ -166,6 +222,7 @@ export async function runQa(cfg, adapter, opts = {}) {
     template_url: cfg.template_url,
     checks: [...cfg.checks],
     thresholds: cfg.thresholds,
+    telemetry,
   };
 }
 

@@ -1,0 +1,7 @@
+URL,Status,Title,Meta Description,Canonical Link,Meta Robots,Lang,H1,Schema Types,Fingerprint
+http://example.com/,200,Home | Old Site,Old homepage desc,http://example.com/,"index, follow",en-us,Welcome to Old Site,WebPage,hash_home_old
+http://example.com/about,200,About Us | Old Site,About page,http://example.com/about/,"index, follow",en-us,About Us,AboutPage,hash_about_old
+http://example.com/blog/post-1,200,Old Blog Post,Blog post desc,http://example.com/blog/post-1,"index, follow",en-us,Our First Post,Article,hash_post_old
+http://example.com/contact,200,Contact Old,Contact us,http://example.com/contact,"index, follow",en_US,Contact,ContactPage,hash_contact_old
+http://example.com/duplicate,200,Dup,,,index,en,,
+http://example.com/duplicate,200,Dup,,,index,en,,

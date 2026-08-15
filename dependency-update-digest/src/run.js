@@ -11,6 +11,7 @@
 // import()ed lazily so tests and offline runs never touch them.
 
 import { normalizeComposer, normalizeNpm, normalizeWp } from './normalize.js';
+import { NetworkOrchestrator } from '../../shared/network-orchestrator.js';
 
 export async function createAdapter(opts = {}) {
   if (opts.fixtures) {
@@ -28,31 +29,78 @@ export async function scanProjects(config, adapter, opts = {}) {
     throw new Error(`Unknown project "${opts.project}" (configured: ${all.map((p) => p.name).join(', ')})`);
   }
 
-  const rows = [];
-  const errors = [];
+  const jobs = [];
   for (const project of projects) {
     for (const type of project.types ?? []) {
-      try {
-        if (type === 'composer') {
-          const outdated = await adapter.composerOutdated(project, opts);
-          const audit = await adapter.composerAudit(project, opts);
-          rows.push(...normalizeComposer(project.name, outdated, audit));
-        } else if (type === 'npm') {
-          const outdated = await adapter.npmOutdated(project, opts);
-          const audit = await adapter.npmAudit(project, opts);
-          rows.push(...normalizeNpm(project.name, outdated, audit, { deep: opts.deep }));
-        } else if (type === 'wp') {
-          const plugins = await adapter.wpPluginList(project, opts);
-          const vulns = await adapter.wpVulns(project, opts);
-          rows.push(...normalizeWp(project.name, plugins, vulns));
-        } else {
-          errors.push({ project: project.name, type, message: `Unknown project type "${type}"` });
-        }
-      } catch (err) {
-        // Detect and degrade: one failing tool must not sink the whole digest.
-        errors.push({ project: project.name, type, message: err.message });
-      }
+      jobs.push({ project, type });
     }
   }
-  return { rows, errors, projects: projects.map((p) => p.name) };
+
+  const orchestrator = new NetworkOrchestrator({
+    globalLimit: config?.concurrency?.global ?? opts.globalLimit ?? 4,
+    perHostLimit: config?.concurrency?.perHost ?? opts.perHostLimit ?? 2,
+    timeoutMs: config?.timeout_ms ?? opts.timeoutMs ?? 30000,
+    maxRetries: config?.max_retries ?? opts.maxRetries ?? 2,
+    cacheEnabled: config?.cache_enabled ?? opts.cacheEnabled ?? false, // default off for updates
+  });
+
+  const tasks = jobs.map((job) => {
+    const host = job.project.wp_rest ? new URL(job.project.wp_rest).hostname : 'local';
+
+    return {
+      host,
+      url: job.project.wp_rest ?? '',
+      fn: async () => {
+        const stageName = `${job.project.name}:${job.type}`;
+        orchestrator.startStage(stageName);
+        try {
+          const results = [];
+          if (job.type === 'composer') {
+            const outdated = await adapter.composerOutdated(job.project, opts);
+            const audit = await adapter.composerAudit(job.project, opts);
+            results.push(...normalizeComposer(job.project.name, outdated, audit));
+          } else if (job.type === 'npm') {
+            const outdated = await adapter.npmOutdated(job.project, opts);
+            const audit = await adapter.npmAudit(job.project, opts);
+            results.push(...normalizeNpm(job.project.name, outdated, audit, { deep: opts.deep }));
+          } else if (job.type === 'wp') {
+            const plugins = await adapter.wpPluginList(job.project, opts);
+            const vulns = await adapter.wpVulns(job.project, opts);
+            results.push(...normalizeWp(job.project.name, plugins, vulns));
+          } else {
+            throw new Error(`Unknown project type "${job.type}"`);
+          }
+          return { success: true, results };
+        } catch (err) {
+          return { success: false, error: err.message ?? String(err) };
+        } finally {
+          orchestrator.endStage(stageName);
+        }
+      }
+    };
+  });
+
+  const taskResults = await orchestrator.run(tasks);
+
+  const rows = [];
+  const errors = [];
+
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i];
+    const res = taskResults[i];
+    if (res.success) {
+      rows.push(...res.results);
+    } else {
+      errors.push({ project: job.project.name, type: job.type, message: res.error });
+    }
+  }
+
+  const telemetry = orchestrator.getTelemetrySummary();
+
+  return {
+    rows,
+    errors,
+    projects: projects.map((p) => p.name),
+    telemetry,
+  };
 }

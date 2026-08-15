@@ -1,16 +1,28 @@
 {
   "name": "@irgendutils/site-migration-scraper",
-  "version": "1.0.0",
-  "description": "Crawl a source site and extract its main content as clean HTML/Markdown and a manifest (Mocked for testing).",
+  "version": "0.1.0",
+  "description": "Crawl a legacy source site and extract each page's core content as clean, normalized HTML and Markdown, along with structured metadata, link graph, and redirect map.",
   "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
     "scrape": "./src/cli.js"
   },
   "scripts": {
-    "start": "node src/cli.js",
-    "test": "node --test"
+    "test": "node --test",
+    "start": "node src/cli.js"
   },
-  "engines": {
-    "node": ">=18"
+  "keywords": [
+    "wordpress",
+    "migration",
+    "scraper",
+    "crawler",
+    "playwright"
+  ],
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "playwright": "1.61.1"
   }
 }
