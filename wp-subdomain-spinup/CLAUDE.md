@@ -51,6 +51,8 @@ see `RUNBOOK.md`; the `/spinup-site` skill automates it.
 - **Idempotent + reversible:** every create has a matching teardown; **dry-run by
   default**, `--apply` to mutate. Never hand-edit the DB when WP-CLI can do it.
 - Secrets from env (`.env`), never committed. Log every REST/WP-CLI call to a run log.
+  Run logs are pruned at startup after 30 days and capped at the 50 newest files;
+  they may contain internal hostnames and URLs and must never be force-added.
 - **Verify before success:** subdomain resolves over https → 200; siteurl reports the
   new subdomain; `search-replace` count == 0 on a dry re-run; template plugins active +
   theme active; authed REST call works; `teardown` fully removes site + DNS (confirm via

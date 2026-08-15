@@ -47,6 +47,12 @@ spinup teardown <sub>                                          # dry-run teardow
 spinup teardown <sub> --apply                                  # fully remove site & DNS records
 ```
 
+Run logs are written to `runs/` for troubleshooting. The logger automatically
+removes logs older than 30 days and caps the directory at the 50 newest log
+files. These files may contain internal hostnames, URLs, and provisioning
+details; `runs/*.log` is intentionally ignored by Git and must never be
+force-added to a commit.
+
 ## Config (`config.yml`)
 
 The configuration file defines the operating mode, endpoints, and adapters for DNS and server access:
