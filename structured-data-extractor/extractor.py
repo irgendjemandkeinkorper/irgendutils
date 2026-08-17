@@ -100,28 +100,40 @@ def is_node(val: Any) -> bool:
     return False
 
 
-def check_old_domains(val: Any, old_domains: List[str]) -> bool:
+def _check_old_domains_lowercased(val: Any, old_domains_lower: List[str]) -> bool:
     """
-    Recursively scans JSON value to check if any string contains any of the specified old domains.
-    Expects `old_domains` elements to be already lowercased for performance.
+    Helper function that recursively scans JSON value for pre-lowercased old domains.
+    Avoids repeated .lower() calls during recursive JSON tree traversal.
     """
-    if not old_domains:
+    if not old_domains_lower:
         return False
 
     if isinstance(val, str):
         val_lower = val.lower()
-        for domain in old_domains:
+        for domain in old_domains_lower:
             if domain in val_lower:
                 return True
     elif isinstance(val, list):
         for item in val:
-            if check_old_domains(item, old_domains):
+            if _check_old_domains_lowercased(item, old_domains_lower):
                 return True
     elif isinstance(val, dict):
         for k, v in val.items():
-            if check_old_domains(k, old_domains) or check_old_domains(v, old_domains):
+            if (_check_old_domains_lowercased(k, old_domains_lower) or
+                    _check_old_domains_lowercased(v, old_domains_lower)):
                 return True
     return False
+
+
+def check_old_domains(val: Any, old_domains: List[str]) -> bool:
+    """
+    Recursively scans JSON value to check if any string contains any of the specified old domains.
+    """
+    if not old_domains:
+        return False
+    # Lowercase domains once before starting recursive traversal
+    old_domains_lower = [d.lower() for d in old_domains]
+    return _check_old_domains_lowercased(val, old_domains_lower)
 
 
 def extract_from_value(
@@ -239,10 +251,6 @@ def parse_html_file(
     """
     if old_domains is None:
         old_domains = []
-    else:
-        # Performance optimization: Pre-lowercase old domains once per file parse
-        # to prevent repeated .lower() calls during recursive JSON tree traversal.
-        old_domains = [d.lower() for d in old_domains]
 
     prov_url = url or ""
     prov_file = filepath
