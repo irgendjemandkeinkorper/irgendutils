@@ -50,6 +50,13 @@ class JSONLDParser(HTMLParser):
             self.current_block.append(data)
 
 
+# Performance optimization: Pre-compile CDATA stripping regex patterns at module load
+# to eliminate redundant regex compilation on every JSON-LD block cleanup.
+_RE_CDATA_OPEN = re.compile(r'(?://|/\*)\s*<!\[CDATA\[\s*(?:\*/)?', re.IGNORECASE)
+_RE_CDATA_CLOSE = re.compile(r'(?://|/\*)\s*\]\]>\s*(?:\*/)?', re.IGNORECASE)
+_RE_CDATA_RAW = re.compile(r'<!\[CDATA\[|\]\]>', re.IGNORECASE)
+
+
 def clean_json_ld_text(text: str) -> str:
     """
     Clean up JS comments, HTML comments, and CDATA wrappers around JSON-LD content.
@@ -60,11 +67,10 @@ def clean_json_ld_text(text: str) -> str:
     if text.startswith("<!--") and text.endswith("-->"):
         text = text[4:-3].strip()
 
-    # Strip CDATA wrappers
-    # Matches patterns like //<![CDATA[ or /* <![CDATA[ */ or // ]]> or /* ]]> */
-    text = re.sub(r'(?://|/\*)\s*<!\[CDATA\[\s*(?:\*/)?', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'(?://|/\*)\s*\]\]>\s*(?:\*/)?', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'<!\[CDATA\[|\]\]>', '', text, flags=re.IGNORECASE)
+    # Strip CDATA wrappers using pre-compiled regex objects
+    text = _RE_CDATA_OPEN.sub('', text)
+    text = _RE_CDATA_CLOSE.sub('', text)
+    text = _RE_CDATA_RAW.sub('', text)
 
     return text.strip()
 
@@ -94,27 +100,40 @@ def is_node(val: Any) -> bool:
     return False
 
 
+def _check_old_domains_lowercased(val: Any, old_domains_lower: List[str]) -> bool:
+    """
+    Helper function that recursively scans JSON value for pre-lowercased old domains.
+    Avoids repeated .lower() calls during recursive JSON tree traversal.
+    """
+    if not old_domains_lower:
+        return False
+
+    if isinstance(val, str):
+        val_lower = val.lower()
+        for domain in old_domains_lower:
+            if domain in val_lower:
+                return True
+    elif isinstance(val, list):
+        for item in val:
+            if _check_old_domains_lowercased(item, old_domains_lower):
+                return True
+    elif isinstance(val, dict):
+        for k, v in val.items():
+            if (_check_old_domains_lowercased(k, old_domains_lower) or
+                    _check_old_domains_lowercased(v, old_domains_lower)):
+                return True
+    return False
+
+
 def check_old_domains(val: Any, old_domains: List[str]) -> bool:
     """
     Recursively scans JSON value to check if any string contains any of the specified old domains.
     """
     if not old_domains:
         return False
-
-    if isinstance(val, str):
-        val_lower = val.lower()
-        for domain in old_domains:
-            if domain.lower() in val_lower:
-                return True
-    elif isinstance(val, list):
-        for item in val:
-            if check_old_domains(item, old_domains):
-                return True
-    elif isinstance(val, dict):
-        for k, v in val.items():
-            if check_old_domains(k, old_domains) or check_old_domains(v, old_domains):
-                return True
-    return False
+    # Lowercase domains once before starting recursive traversal
+    old_domains_lower = [d.lower() for d in old_domains]
+    return _check_old_domains_lowercased(val, old_domains_lower)
 
 
 def extract_from_value(
