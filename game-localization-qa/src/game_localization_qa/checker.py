@@ -1,6 +1,10 @@
 import re
-from typing import Dict, List, Set, Tuple, Optional, Any
+from typing import Dict, List, Set, Tuple, Optional, Any, Pattern
 from .config import QAConfig
+
+# Pre-compiled regular expressions for tag matching in hot loops
+RE_TAGS: Pattern[str] = re.compile(r'</?([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?>')
+RE_TAG_TOKENS: Pattern[str] = re.compile(r'<(/?)([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?(/?)>')
 
 class QAIssue:
     """Represents a localized QA finding/issue."""
@@ -27,23 +31,23 @@ class LocalizationChecker:
 
     def _extract_placeholders(self, text: str) -> List[str]:
         placeholders = []
-        for pattern in self.config.get_placeholder_patterns():
-            matches = re.findall(pattern, text)
+        for compiled_pattern in self.config.get_compiled_placeholder_patterns():
+            matches = compiled_pattern.findall(text)
             placeholders.extend(matches)
         return sorted(placeholders)
 
     def _extract_tags(self, text: str) -> List[str]:
-        # Simple HTML/XML tag finder
+        # Simple HTML/XML tag finder using pre-compiled module regex
         # Captures open and close tag names, like 'b' from <b> or '</b>'
-        tags = re.findall(r'</?([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?>', text)
+        tags = RE_TAGS.findall(text)
         return tags
 
     def _is_tag_imbalanced(self, text: str) -> bool:
-        # Check standard matching tags
+        # Check standard matching tags using pre-compiled module regex
         # We can use a stack to verify balanced tags (e.g. <b>...</b>)
         # We find all complete tags in the string in order of appearance
         # For simplicity, we ignore self-closing tags like <br/> or <img/>
-        tag_tokens = re.findall(r'<(/?)([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?(/?)>', text)
+        tag_tokens = RE_TAG_TOKENS.findall(text)
         stack = []
         for close_slash, tag_name, self_close_slash in tag_tokens:
             if self_close_slash == '/': # self-closing tag
