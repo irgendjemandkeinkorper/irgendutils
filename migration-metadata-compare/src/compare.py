@@ -28,10 +28,13 @@ DEFAULT_SEVERITY_POLICY = {
     "duplicate": "warning",
 }
 
+# Pre-compile whitespace regex at module level to eliminate redundant compilation overhead in hot loops
+_RE_WHITESPACE = re.compile(r"\s+")
+
 def normalize_whitespace(text: Optional[str]) -> str:
     if text is None:
         return ""
-    return re.sub(r"\s+", " ", str(text)).strip()
+    return _RE_WHITESPACE.sub(" ", str(text)).strip()
 
 def normalize_url(url: Optional[str]) -> str:
     if not url:
