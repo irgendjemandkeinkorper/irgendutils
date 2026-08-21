@@ -73,6 +73,8 @@ class CrawlState:
         self.store_bodies = store_bodies
 
         self.queue = []  # list of {"url": url, "depth": depth, "redirect_count": r_count}
+        # In-memory lookup set to optimize duplicate queue checks from O(N) to O(1)
+        self.queued_urls = set()
         self.visited = {}  # url -> info dict
         self.failed = {}   # url -> info dict
         self.robots_cache = {}  # host_origin -> robots_txt_content (str) or None
@@ -90,6 +92,7 @@ class CrawlState:
                 self.allowed_origins = data.get("allowed_origins", self.allowed_origins)
                 self.allowed_paths = data.get("allowed_paths", self.allowed_paths)
                 self.queue = data.get("queue", self.queue)
+                self.queued_urls = {item["url"] for item in self.queue}
                 self.visited = data.get("visited", self.visited)
                 self.failed = data.get("failed", self.failed)
                 self.robots_cache = data.get("robots_cache", self.robots_cache)
@@ -146,6 +149,7 @@ class CrawlState:
 
                 if self.queue:
                     item = self.queue.pop(0)
+                    self.queued_urls.discard(item["url"])
                     self.active_count += 1
                     return item
 
@@ -170,7 +174,7 @@ class CrawlState:
                     continue
                 if url in self.visited or url in self.failed:
                     continue
-                if any(item["url"] == url for item in self.queue):
+                if url in self.queued_urls:
                     continue
                 if current_depth + 1 > self.depth_limit:
                     continue
@@ -180,6 +184,7 @@ class CrawlState:
                     "depth": current_depth + 1,
                     "redirect_count": 0
                 })
+                self.queued_urls.add(url)
                 added = True
             if added:
                 self.cond.notify_all()
@@ -195,13 +200,14 @@ class CrawlState:
                     continue
                 if url in self.visited or url in self.failed:
                     continue
-                if any(item["url"] == url for item in self.queue):
+                if url in self.queued_urls:
                     continue
                 self.queue.append({
                     "url": url,
                     "depth": 0,
                     "redirect_count": 0
                 })
+                self.queued_urls.add(url)
                 added = True
             if added:
                 self.cond.notify_all()
@@ -389,6 +395,7 @@ class CrawlCollector:
                                         "depth": depth,
                                         "redirect_count": redirect_count + 1
                                     })
+                                    self.state.queued_urls.add(redirect_url)
                                     self.state.cond.notify_all()
                                 self.state.save()
                             return
