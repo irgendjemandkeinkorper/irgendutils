@@ -54,8 +54,10 @@ export function resolveRulesForPath(config, url) {
   for (const rule of config.rules) {
     if (!rule || !rule.path) continue;
     try {
-      const regex = new RegExp(rule.path);
-      if (regex.test(relPath)) {
+      if (!rule._regex) {
+        rule._regex = new RegExp(rule.path);
+      }
+      if (rule._regex.test(relPath)) {
         if (rule.exclude !== undefined) {
           resolved.exclude = !!rule.exclude;
         }
