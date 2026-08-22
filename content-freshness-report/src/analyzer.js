@@ -211,7 +211,8 @@ export function calculateWordCount(content) {
     } else if (ch === 62 /* > */) {
       inTag = false;
     } else if (!inTag) {
-      if (ch <= 32) {
+      // Handles standard ASCII whitespace (ch <= 32) and non-breaking space (160)
+      if (ch <= 32 || ch === 160 || ch === 5760 || (ch >= 8192 && ch <= 8202) || ch === 8239 || ch === 8287 || ch === 12288) {
         inWord = false;
       } else {
         if (!inWord) {
