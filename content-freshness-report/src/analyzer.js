@@ -195,14 +195,34 @@ function normalizeText(text) {
 }
 
 /**
- * Clean HTML tags and count words
+ * Clean HTML tags and count words using a fast single-pass character scan loop.
+ * Avoids regex allocation and string slicing in hot loops.
  */
 export function calculateWordCount(content) {
   if (!content) return 0;
-  // Strip HTML tags if any
-  const cleanText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!cleanText) return 0;
-  return cleanText.split(/\s+/).length;
+  let count = 0;
+  let inTag = false;
+  let inWord = false;
+  for (let i = 0; i < content.length; i++) {
+    const ch = content.charCodeAt(i);
+    if (ch === 60 /* < */) {
+      inTag = true;
+      inWord = false;
+    } else if (ch === 62 /* > */) {
+      inTag = false;
+    } else if (!inTag) {
+      // Handles standard ASCII whitespace (ch <= 32) and non-breaking space (160)
+      if (ch <= 32 || ch === 160 || ch === 5760 || (ch >= 8192 && ch <= 8202) || ch === 8239 || ch === 8287 || ch === 12288) {
+        inWord = false;
+      } else {
+        if (!inWord) {
+          count++;
+          inWord = true;
+        }
+      }
+    }
+  }
+  return count;
 }
 
 /**
@@ -263,31 +283,27 @@ export function runAnalysis(pages, config, options = {}) {
     throw new Error(`Invalid current date override: "${options.currentDate}"`);
   }
 
-  // 1. Exclude any pages that are configured to be excluded
-  const activePages = [];
+  // 1. Exclude any pages that are configured to be excluded and prepare results
+  const pageResults = [];
   for (const page of pages) {
+    const relativePath = getRelativePath(page.url);
     const rules = resolveRulesForPath(config, page.url);
     if (!rules.exclude) {
-      activePages.push({
-        ...page,
+      pageResults.push({
+        url: page.url,
+        relativePath,
+        title: page.title,
+        metaDesc: page.metaDesc,
+        date: page.date,
+        wordCount: calculateWordCount(page.content),
+        headings: page.headings,
+        links: page.links,
         rules, // Keep resolved rules for references
+        findings: [],
+        priorityScore: 0,
       });
     }
   }
-
-  // Prep the analysis results per page
-  const pageResults = activePages.map((page) => ({
-    url: page.url,
-    relativePath: getRelativePath(page.url),
-    title: page.title,
-    metaDesc: page.metaDesc,
-    date: page.date,
-    wordCount: calculateWordCount(page.content),
-    headings: page.headings,
-    links: page.links,
-    findings: [],
-    priorityScore: 0,
-  }));
 
   // Map of normalized relative paths to indices for easy lookup
   const pathMap = new Map();
@@ -297,7 +313,7 @@ export function runAnalysis(pages, config, options = {}) {
 
   // 2. Freshness & Thin Content checks
   for (const p of pageResults) {
-    const rules = resolveRulesForPath(config, p.url);
+    const rules = p.rules;
 
     // Freshness check
     if (!p.date) {
@@ -414,7 +430,7 @@ export function runAnalysis(pages, config, options = {}) {
 
     // If no inbound links, check if it's a configured entry page
     if (inLinks.size === 0) {
-      const rules = resolveRulesForPath(config, p.url);
+      const rules = p.rules;
       const entryPagesNormalized = (rules.entry_pages || []).map(getRelativePath);
 
       if (!entryPagesNormalized.includes(p.relativePath)) {
@@ -433,6 +449,9 @@ export function runAnalysis(pages, config, options = {}) {
 
     // Sort findings inside page by score descending
     p.findings.sort((a, b) => b.score - a.score);
+
+    // Clean up temporary internal rules reference
+    delete p.rules;
   }
 
   // Sort page results by priority score descending, then relative path alphabetically

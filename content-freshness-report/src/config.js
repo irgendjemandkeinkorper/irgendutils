@@ -32,6 +32,20 @@ export function getRelativePath(url) {
   }
 }
 
+const ruleRegexCache = new WeakMap();
+
+function getRuleRegex(rule) {
+  if (typeof rule !== 'object' || rule === null) {
+    return new RegExp(rule.path);
+  }
+  let regex = ruleRegexCache.get(rule);
+  if (!regex) {
+    regex = new RegExp(rule.path);
+    ruleRegexCache.set(rule, regex);
+  }
+  return regex;
+}
+
 /**
  * Resolves thresholds and flags for a given page URL/path based on the rules configuration.
  */
@@ -54,7 +68,7 @@ export function resolveRulesForPath(config, url) {
   for (const rule of config.rules) {
     if (!rule || !rule.path) continue;
     try {
-      const regex = new RegExp(rule.path);
+      const regex = getRuleRegex(rule);
       if (regex.test(relPath)) {
         if (rule.exclude !== undefined) {
           resolved.exclude = !!rule.exclude;
