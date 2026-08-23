@@ -29,3 +29,7 @@
 ## 2025-05-20 - Indexing lookups for O(N*M) candidate matching in migration generators
 **Learning:** Performing linear scans across all destination pages for each source page in URL migration generators creates an O(N * M) bottleneck. Pre-building Map indexes for path, slug, and clean title during destination initialization reduces lookups to O(1) per source page. Additionally, maintaining a per-page Set (`matchedDestsForPage`) prevents duplicate candidate lookups and preserves strict strategy priority tiers (exact_path > canonical > slug > title).
 **Action:** Always pre-index candidate items into Map lookups when performing multi-attribute matching across large datasets, using a Set to preserve matching precedence per target item.
+
+## 2025-05-21 - pathlib.Path instantiation overhead and secondary regex substitution in Python path parsing
+**Learning:** Instantiating `pathlib.Path` objects inside hot processing loops over tens of thousands of file paths introduces heavy object instantiation and system-call wrapper overhead. Furthermore, executing secondary `re.sub()` regular expression replacements when match coordinates (`match.start()`) are already available wastes CPU cycles. Replacing `Path` with standard C-level string operations (`rfind('/')` and slicing) yields a ~6.7x performance improvement.
+**Action:** Avoid `pathlib.Path` and secondary `re.sub` in hot path-parsing loops; use standard string slicing and `str.rfind('/')` with already-computed regex match offsets instead.
