@@ -78,6 +78,11 @@ def should_exclude(
     if not path:
         return False
 
+    # Performance optimization: Fast exit when no exclusion criteria are provided,
+    # avoiding redundant os.path.abspath(), os.path.basename(), and os.path.relpath() allocations.
+    if not exclude_paths and not exclude_globs:
+        return False
+
     # Normalize target path to absolute
     abs_path = os.path.abspath(path)
     base_name = os.path.basename(abs_path)
