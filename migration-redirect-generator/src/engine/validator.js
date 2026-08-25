@@ -92,20 +92,29 @@ export async function validateRedirectMap(mapData, { verifyDestinations = false 
   }
 
   // 3. Loop and Chain Detection
+  // Performance optimization: Use pathIndices Map for O(1) cycle detection
+  // and prioritize root nodes (inDegree === 0) for maximal chain detection.
   const recordedCycleKeys = new Set();
+  const visited = new Set();
 
+  // Step 1: Traversal from root nodes (inDegree === 0) to find maximal chains and cycles
   for (const startNode of inDegrees.keys()) {
+    const inDegree = inDegrees.get(startNode) || 0;
+    if (inDegree !== 0) continue;
+
+    visited.add(startNode);
     const path = [startNode];
+    const pathIndices = new Map([[startNode, 0]]);
     let current = startNode;
     let hasLoop = false;
 
     while (graph.has(current)) {
       const next = graph.get(current);
 
-      if (path.includes(next)) {
+      if (pathIndices.has(next)) {
         // Loop detected!
         hasLoop = true;
-        const loopStartIndex = path.indexOf(next);
+        const loopStartIndex = pathIndices.get(next);
         const loopCycle = path.slice(loopStartIndex);
         loopCycle.push(next); // Complete cycle representation
 
@@ -118,14 +127,51 @@ export async function validateRedirectMap(mapData, { verifyDestinations = false 
         break;
       }
 
+      visited.add(next);
+      pathIndices.set(next, path.length);
       path.push(next);
       current = next;
     }
 
-    // Only record chains that are maximal (start node has in-degree 0) to avoid sub-chains
-    const inDegree = inDegrees.get(startNode) || 0;
-    if (!hasLoop && path.length > 2 && inDegree === 0) {
+    if (!hasLoop && path.length > 2) {
       chains.push(path);
+    }
+  }
+
+  // Step 2: Traversal for remaining unvisited nodes (e.g. isolated cycles with inDegree > 0)
+  for (const startNode of inDegrees.keys()) {
+    if (visited.has(startNode)) continue;
+
+    const path = [startNode];
+    const pathIndices = new Map([[startNode, 0]]);
+    let current = startNode;
+
+    while (graph.has(current)) {
+      const next = graph.get(current);
+
+      if (pathIndices.has(next)) {
+        // Loop detected!
+        const loopStartIndex = pathIndices.get(next);
+        const loopCycle = path.slice(loopStartIndex);
+        loopCycle.push(next); // Complete cycle representation
+
+        const cycleKey = Array.from(new Set(loopCycle.slice(0, -1))).sort().join(',');
+        if (!recordedCycleKeys.has(cycleKey)) {
+          recordedCycleKeys.add(cycleKey);
+          loops.push(loopCycle);
+        }
+        break;
+      }
+
+      if (visited.has(next)) {
+        // Hit previously analyzed component with no new cycles
+        break;
+      }
+
+      visited.add(next);
+      pathIndices.set(next, path.length);
+      path.push(next);
+      current = next;
     }
   }
 
