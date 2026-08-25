@@ -29,3 +29,7 @@
 ## 2025-05-20 - Indexing lookups for O(N*M) candidate matching in migration generators
 **Learning:** Performing linear scans across all destination pages for each source page in URL migration generators creates an O(N * M) bottleneck. Pre-building Map indexes for path, slug, and clean title during destination initialization reduces lookups to O(1) per source page. Additionally, maintaining a per-page Set (`matchedDestsForPage`) prevents duplicate candidate lookups and preserves strict strategy priority tiers (exact_path > canonical > slug > title).
 **Action:** Always pre-index candidate items into Map lookups when performing multi-attribute matching across large datasets, using a Set to preserve matching precedence per target item.
+
+## 2025-05-21 - Map path indexing and visited set skipping for graph validation loops
+**Learning:** Using `Array.prototype.includes` inside graph traversal loops causes $O(N^2)$ or $O(N^3)$ runtime explosion on chain/cycle detection. Utilizing a `Map` (`pathIndices`) tracking node indices along the current path turns loop detection checks into $O(1)$ operations. Maintaining a global `visited` `Set` across root-first graph traversals skips already evaluated nodes and reduces overall validation complexity to linear $O(V + E)$.
+**Action:** Always use `Map` or `Set` for path membership checks during graph traversals, and track global `visited` nodes to avoid re-traversing subgraphs.
