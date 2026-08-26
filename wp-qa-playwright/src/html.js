@@ -1,13 +1,21 @@
 // Tolerant, regex-based HTML extraction — good enough for structural QA on
 // rendered pages without pulling in a DOM library.
 
-const LANDMARK_TAGS = ['header', 'nav', 'main', 'footer'];
-const ROLE_TO_LANDMARK = {
-  banner: 'header',
-  navigation: 'nav',
-  main: 'main',
-  contentinfo: 'footer',
-};
+// Pre-compile static RegExp instances at module scope to prevent costly RegExp compilation
+// overhead on every extractStructure invocation inside structural QA loops.
+const LANDMARK_PATTERNS = [
+  { tag: 'header', re: /<header(\s|>)/i },
+  { tag: 'nav', re: /<nav(\s|>)/i },
+  { tag: 'main', re: /<main(\s|>)/i },
+  { tag: 'footer', re: /<footer(\s|>)/i },
+];
+
+const ROLE_PATTERNS = [
+  { role: 'banner', tag: 'header', re: /role\s*=\s*["']?banner["']?/i },
+  { role: 'navigation', tag: 'nav', re: /role\s*=\s*["']?navigation["']?/i },
+  { role: 'main', tag: 'main', re: /role\s*=\s*["']?main["']?/i },
+  { role: 'contentinfo', tag: 'footer', re: /role\s*=\s*["']?contentinfo["']?/i },
+];
 
 export function stripTags(html) {
   return decodeEntities(String(html).replace(/<[^>]*>/g, ' '))
@@ -32,11 +40,12 @@ export function decodeEntities(s) {
 export function extractStructure(html) {
   const src = String(html);
   const landmarks = [];
-  for (const tag of LANDMARK_TAGS) {
-    if (new RegExp(`<${tag}(\\s|>)`, 'i').test(src)) landmarks.push(tag);
+  // Use pre-compiled RegExp patterns to avoid dynamically constructing RegExp objects.
+  for (const { tag, re } of LANDMARK_PATTERNS) {
+    if (re.test(src)) landmarks.push(tag);
   }
-  for (const [role, tag] of Object.entries(ROLE_TO_LANDMARK)) {
-    if (!landmarks.includes(tag) && new RegExp(`role\\s*=\\s*["']?${role}["']?`, 'i').test(src)) {
+  for (const { tag, re } of ROLE_PATTERNS) {
+    if (!landmarks.includes(tag) && re.test(src)) {
       landmarks.push(tag);
     }
   }
