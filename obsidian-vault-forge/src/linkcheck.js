@@ -5,10 +5,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { walkFiles } from './util.js';
 
+// Pre-compiled regular expressions at module scope to prevent re-compilation
+// and garbage collection overhead during hot link checking loops across vault files.
+const WIKILINK_RE = /!?\[\[([^[\]\n]+)\]\]/g;
+const CODE_BLOCK_RE = /```[\s\S]*?```/g;
+const INLINE_CODE_RE = /`[^`\n]*`/g;
+
 function stripCode(text) {
-  return String(text)
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/`[^`\n]*`/g, '');
+  // Fast path: skip expensive code block stripping if there are no backticks.
+  if (!text.includes('`')) return text;
+  return text
+    .replace(CODE_BLOCK_RE, '')
+    .replace(INLINE_CODE_RE, '');
 }
 
 /** Returns [{ file, target }] for every dangling wikilink. */
@@ -22,11 +30,30 @@ export function checkLinks(vaultDir) {
   }
   const dangling = [];
   for (const rel of files) {
-    const text = stripCode(fs.readFileSync(path.join(vaultDir, rel), 'utf8'));
-    for (const m of text.matchAll(/!?\[\[([^[\]\n]+)\]\]/g)) {
-      let target = m[1].split('|')[0].split('#')[0].trim();
+    const rawText = fs.readFileSync(path.join(vaultDir, rel), 'utf8');
+    // Fast path: skip parsing files that contain no wikilinks at all.
+    if (!rawText.includes('[[')) continue;
+
+    const text = stripCode(rawText);
+    WIKILINK_RE.lastIndex = 0;
+    let m;
+    while ((m = WIKILINK_RE.exec(text)) !== null) {
+      let target = m[1];
+      // Fast target extraction using indexOf/slice to avoid split array allocations
+      const pipeIdx = target.indexOf('|');
+      if (pipeIdx !== -1) target = target.slice(0, pipeIdx);
+      const hashIdx = target.indexOf('#');
+      if (hashIdx !== -1) target = target.slice(0, hashIdx);
+
+      target = target.trim();
       if (target === '') continue; // [[#heading]] self-link
-      target = target.replace(/\.md$/i, '');
+
+      if (target.endsWith('.md') || target.endsWith('.MD')) {
+        target = target.slice(0, -3);
+      } else if (target.toLowerCase().endsWith('.md')) {
+        target = target.slice(0, -3);
+      }
+
       if (!names.has(target.toLowerCase())) dangling.push({ file: rel, target });
     }
   }
