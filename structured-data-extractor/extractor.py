@@ -50,6 +50,12 @@ class JSONLDParser(HTMLParser):
             self.current_block.append(data)
 
 
+# Pre-compiled CDATA regex patterns to eliminate compilation overhead during parsing
+_RE_CDATA_START = re.compile(r'(?://|/\*)\s*<!\[CDATA\[\s*(?:\*/)?', flags=re.IGNORECASE)
+_RE_CDATA_END = re.compile(r'(?://|/\*)\s*\]\]>\s*(?:\*/)?', flags=re.IGNORECASE)
+_RE_CDATA_TAGS = re.compile(r'<!\[CDATA\[|\]\]>', flags=re.IGNORECASE)
+
+
 def clean_json_ld_text(text: str) -> str:
     """
     Clean up JS comments, HTML comments, and CDATA wrappers around JSON-LD content.
@@ -60,11 +66,11 @@ def clean_json_ld_text(text: str) -> str:
     if text.startswith("<!--") and text.endswith("-->"):
         text = text[4:-3].strip()
 
-    # Strip CDATA wrappers
-    # Matches patterns like //<![CDATA[ or /* <![CDATA[ */ or // ]]> or /* ]]> */
-    text = re.sub(r'(?://|/\*)\s*<!\[CDATA\[\s*(?:\*/)?', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'(?://|/\*)\s*\]\]>\s*(?:\*/)?', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'<!\[CDATA\[|\]\]>', '', text, flags=re.IGNORECASE)
+    # Performance optimization: Bypass regex operations if no CDATA wrapper is present (fast path).
+    if "cdata" in text.lower():
+        text = _RE_CDATA_START.sub('', text)
+        text = _RE_CDATA_END.sub('', text)
+        text = _RE_CDATA_TAGS.sub('', text)
 
     return text.strip()
 
@@ -97,6 +103,7 @@ def is_node(val: Any) -> bool:
 def check_old_domains(val: Any, old_domains: List[str]) -> bool:
     """
     Recursively scans JSON value to check if any string contains any of the specified old domains.
+    Assumes domain strings in `old_domains` have already been lowercased.
     """
     if not old_domains:
         return False
@@ -104,7 +111,7 @@ def check_old_domains(val: Any, old_domains: List[str]) -> bool:
     if isinstance(val, str):
         val_lower = val.lower()
         for domain in old_domains:
-            if domain.lower() in val_lower:
+            if domain in val_lower:
                 return True
     elif isinstance(val, list):
         for item in val:
@@ -270,6 +277,9 @@ def parse_html_file(
             "error": f"HTML Parsing exception: {str(e)}"
         })
 
+    # Pre-lowercase old domain filter list to avoid redundant .lower() calls in recursive checks
+    old_domains_lower = [d.lower() for d in old_domains]
+
     # Process each JSON-LD block
     for idx, (line_no, raw_text) in enumerate(parser.blocks):
         cleaned_text = clean_json_ld_text(raw_text)
@@ -287,7 +297,7 @@ def parse_html_file(
             continue
 
         # Extract structured data recursively from parsed JSON
-        extract_from_value(parsed_json, None, page_state, idx, old_domains)
+        extract_from_value(parsed_json, None, page_state, idx, old_domains_lower)
 
     # Convert nodes into output format and clean internal fields
     cleaned_nodes = []
