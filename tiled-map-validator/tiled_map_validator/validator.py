@@ -304,6 +304,22 @@ class TiledValidator:
                     "name": tileset_dict.get("name", "unnamed")
                 })
 
+        # Pre-extract tileset range tuples and initialize GID lookup cache
+        # Performance optimization: avoids dictionary key lookups and repeated range linear scans per tile GID
+        ts_ranges = [(r["firstgid"], r["lastgid"]) for r in resolved_tilesets]
+        gid_cache: Dict[int, bool] = {}
+
+        def check_gid_valid(clean_gid: int) -> bool:
+            valid = gid_cache.get(clean_gid)
+            if valid is None:
+                valid = False
+                for fg, lg in ts_ranges:
+                    if fg <= clean_gid <= lg:
+                        valid = True
+                        break
+                gid_cache[clean_gid] = valid
+            return valid
+
         # Validate layers
         layers = map_data.get("layers", [])
         layer_names = []
@@ -380,13 +396,8 @@ class TiledValidator:
                                 clean_gid = raw_gid & ~FLIP_FLAGS
                                 if clean_gid == 0:
                                     continue
-                                # Validate GID is covered by tilesets
-                                valid_gid = False
-                                for r_ts in resolved_tilesets:
-                                    if r_ts["firstgid"] <= clean_gid <= r_ts["lastgid"]:
-                                        valid_gid = True
-                                        break
-                                if not valid_gid:
+                                # Validate GID is covered by tilesets (using memoized cache)
+                                if not check_gid_valid(clean_gid):
                                     x = idx % l_width if l_width else 0
                                     y = idx // l_width if l_width else 0
                                     self._add_finding(
@@ -432,13 +443,8 @@ class TiledValidator:
                                     clean_gid = raw_gid & ~FLIP_FLAGS
                                     if clean_gid == 0:
                                         continue
-                                    # Validate GID
-                                    valid_gid = False
-                                    for r_ts in resolved_tilesets:
-                                        if r_ts["firstgid"] <= clean_gid <= r_ts["lastgid"]:
-                                            valid_gid = True
-                                            break
-                                    if not valid_gid:
+                                    # Validate GID (using memoized cache)
+                                    if not check_gid_valid(clean_gid):
                                         tile_x = (c_x or 0) + (idx % c_w if c_w else 0)
                                         tile_y = (c_y or 0) + (idx // c_w if c_w else 0)
                                         self._add_finding(
@@ -485,12 +491,7 @@ class TiledValidator:
                             if obj_gid_raw is not None:
                                 obj_gid = obj_gid_raw & ~FLIP_FLAGS
                                 if obj_gid > 0:
-                                    valid_gid = False
-                                    for r_ts in resolved_tilesets:
-                                        if r_ts["firstgid"] <= obj_gid <= r_ts["lastgid"]:
-                                            valid_gid = True
-                                            break
-                                    if not valid_gid:
+                                    if not check_gid_valid(obj_gid):
                                         self._add_finding(
                                             findings, map_path, "error", "gid",
                                             f"Object '{obj_name}' has invalid GID {obj_gid} (raw: {obj_gid_raw}) in layer '{l_name}'.",

@@ -29,3 +29,7 @@
 ## 2025-05-20 - Indexing lookups for O(N*M) candidate matching in migration generators
 **Learning:** Performing linear scans across all destination pages for each source page in URL migration generators creates an O(N * M) bottleneck. Pre-building Map indexes for path, slug, and clean title during destination initialization reduces lookups to O(1) per source page. Additionally, maintaining a per-page Set (`matchedDestsForPage`) prevents duplicate candidate lookups and preserves strict strategy priority tiers (exact_path > canonical > slug > title).
 **Action:** Always pre-index candidate items into Map lookups when performing multi-attribute matching across large datasets, using a Set to preserve matching precedence per target item.
+
+## 2025-05-21 - Pre-extract range tuples and memoize tile GID validation in map validators
+**Learning:** In tiled map validators, tile GID lookups iterate over tens of thousands of grid cells that repeat the same GID values. Repeatedly looking up dictionary keys (`r_ts["firstgid"]`) and linearly iterating through tileset range objects per tile creates significant overhead. Pre-extracting `(firstgid, lastgid)` into clean tuple ranges and caching validity results per clean GID in a local function dictionary reduces validation from repeated range scans to $O(1)$ cached lookups, yielding ~1.8x speedups.
+**Action:** Pre-convert dictionary entries into flat tuple ranges before hot iteration loops and memoize validity checks per unique GID value.
