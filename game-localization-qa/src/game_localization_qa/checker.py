@@ -2,6 +2,10 @@ import re
 from typing import Dict, List, Set, Tuple, Optional, Any
 from .config import QAConfig
 
+# Performance optimization: Pre-compile module-level regular expressions for tag matching
+TAG_RE = re.compile(r'</?([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?>')
+TAG_TOKEN_RE = re.compile(r'<(/?)([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?(/?)>')
+
 class QAIssue:
     """Represents a localized QA finding/issue."""
     def __init__(self, string_id: str, check_type: str, message: str, canonical_val: Optional[str] = None, locale_val: Optional[str] = None):
@@ -27,23 +31,22 @@ class LocalizationChecker:
 
     def _extract_placeholders(self, text: str) -> List[str]:
         placeholders = []
-        for pattern in self.config.get_placeholder_patterns():
-            matches = re.findall(pattern, text)
-            placeholders.extend(matches)
+        if hasattr(self.config, "get_compiled_placeholder_patterns"):
+            for pattern in self.config.get_compiled_placeholder_patterns():
+                placeholders.extend(pattern.findall(text))
+        else:
+            for pattern in self.config.get_placeholder_patterns():
+                placeholders.extend(re.findall(pattern, text))
         return sorted(placeholders)
 
     def _extract_tags(self, text: str) -> List[str]:
-        # Simple HTML/XML tag finder
-        # Captures open and close tag names, like 'b' from <b> or '</b>'
-        tags = re.findall(r'</?([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?>', text)
+        # Simple HTML/XML tag finder using pre-compiled regex
+        tags = TAG_RE.findall(text)
         return tags
 
     def _is_tag_imbalanced(self, text: str) -> bool:
-        # Check standard matching tags
-        # We can use a stack to verify balanced tags (e.g. <b>...</b>)
-        # We find all complete tags in the string in order of appearance
-        # For simplicity, we ignore self-closing tags like <br/> or <img/>
-        tag_tokens = re.findall(r'<(/?)([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?(/?)>', text)
+        # Check standard matching tags using pre-compiled regex
+        tag_tokens = TAG_TOKEN_RE.findall(text)
         stack = []
         for close_slash, tag_name, self_close_slash in tag_tokens:
             if self_close_slash == '/': # self-closing tag
@@ -108,27 +111,29 @@ class LocalizationChecker:
 
             # --- Check: Tag Imbalance / Mismatch ---
             if not self.config.is_ignored(k, locale_name, "tag_imbalance"):
-                # Detect imbalances inside the locale string itself
-                if self._is_tag_imbalanced(loc_val):
-                    issues.append(QAIssue(
-                        string_id=k,
-                        check_type="tag_imbalance",
-                        message="Locale string has imbalanced or malformed markup tags.",
-                        canonical_val=canon_val,
-                        locale_val=loc_val
-                    ))
-                else:
-                    # Detect tag drift between canonical and locale
-                    canon_tags = sorted(self._extract_tags(canon_val))
-                    loc_tags = sorted(self._extract_tags(loc_val))
-                    if canon_tags != loc_tags:
+                # Performance optimization: Fast path check to skip regex scanning when strings lack markup tags
+                if "<" in loc_val or "<" in canon_val:
+                    # Detect imbalances inside the locale string itself
+                    if self._is_tag_imbalanced(loc_val):
                         issues.append(QAIssue(
                             string_id=k,
                             check_type="tag_imbalance",
-                            message=f"Markup tag list does not match canonical. Canonical: {canon_tags}, Locale: {loc_tags}",
+                            message="Locale string has imbalanced or malformed markup tags.",
                             canonical_val=canon_val,
                             locale_val=loc_val
                         ))
+                    else:
+                        # Detect tag drift between canonical and locale
+                        canon_tags = sorted(self._extract_tags(canon_val))
+                        loc_tags = sorted(self._extract_tags(loc_val))
+                        if canon_tags != loc_tags:
+                            issues.append(QAIssue(
+                                string_id=k,
+                                check_type="tag_imbalance",
+                                message=f"Markup tag list does not match canonical. Canonical: {canon_tags}, Locale: {loc_tags}",
+                                canonical_val=canon_val,
+                                locale_val=loc_val
+                            ))
 
             # --- Check: Line-break Constraints ---
             if not self.config.is_ignored(k, locale_name, "line_break_drift"):
