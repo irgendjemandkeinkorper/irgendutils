@@ -1,5 +1,6 @@
 import json
-from typing import Dict, List, Optional, Any, Set
+import re
+from typing import Dict, List, Optional, Any, Set, Pattern
 
 DEFAULT_CONFIG = {
     "ignore_rules": {
@@ -35,6 +36,22 @@ class QAConfig:
         self.data = DEFAULT_CONFIG.copy()
         if config_data:
             self._deep_update(self.data, config_data)
+        self._cache_lookups()
+
+    def _cache_lookups(self) -> None:
+        """Performance optimization: Pre-build sets and pre-compile regexes to prevent repetitive list-to-set conversions in hot QA loops."""
+        global_rules = self.data.get("ignore_rules", {}).get("global", {})
+        self._global_ignored_ids = set(global_rules.get("ignored_ids", []))
+        self._global_ignored_checks = set(global_rules.get("ignored_checks", []))
+
+        self._locale_ignored_ids: Dict[str, Set[str]] = {}
+        self._locale_ignored_checks: Dict[str, Set[str]] = {}
+        for loc, rules in self.data.get("ignore_rules", {}).get("locales", {}).items():
+            self._locale_ignored_ids[loc] = set(rules.get("ignored_ids", []))
+            self._locale_ignored_checks[loc] = set(rules.get("ignored_checks", []))
+
+        patterns = self.data.get("placeholder_patterns", [])
+        self._compiled_placeholder_patterns: List[Pattern[str]] = [re.compile(p) for p in patterns]
 
     def _deep_update(self, base: Dict[str, Any], update: Dict[str, Any]) -> None:
         for k, v in update.items():
@@ -53,31 +70,26 @@ class QAConfig:
             return cls()
 
     def is_ignored(self, string_id: str, locale: Optional[str] = None, check_type: Optional[str] = None) -> bool:
-        # Check global ignore rules
-        global_rules = self.data.get("ignore_rules", {}).get("global", {})
-        global_ignored_ids = set(global_rules.get("ignored_ids", []))
-        global_ignored_checks = set(global_rules.get("ignored_checks", []))
-
-        if string_id in global_ignored_ids:
+        # Check global ignore rules using cached set lookups (O(1))
+        if string_id in self._global_ignored_ids:
             return True
-        if check_type and check_type in global_ignored_checks:
+        if check_type and check_type in self._global_ignored_checks:
             return True
 
         # Check locale-specific rules
         if locale:
-            locale_rules = self.data.get("ignore_rules", {}).get("locales", {}).get(locale, {})
-            locale_ignored_ids = set(locale_rules.get("ignored_ids", []))
-            locale_ignored_checks = set(locale_rules.get("ignored_checks", []))
-
-            if string_id in locale_ignored_ids:
+            if string_id in self._locale_ignored_ids.get(locale, set()):
                 return True
-            if check_type and check_type in locale_ignored_checks:
+            if check_type and check_type in self._locale_ignored_checks.get(locale, set()):
                 return True
 
         return False
 
     def get_placeholder_patterns(self) -> List[str]:
         return self.data.get("placeholder_patterns", [])
+
+    def get_compiled_placeholder_patterns(self) -> List[Pattern[str]]:
+        return self._compiled_placeholder_patterns
 
     def get_min_untranslated_length(self) -> int:
         return self.data.get("min_untranslated_length", 5)
