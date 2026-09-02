@@ -33,44 +33,80 @@ export function getRelativePath(url) {
 }
 
 /**
+ * Pre-compiles regular expressions and normalizes entry pages for a configuration object.
+ * Caches the compiled configuration on `config._compiled` to avoid repeated RegExp instantiation
+ * and array normalization during page batch analysis loops.
+ */
+export function compileConfig(config) {
+  if (config && config._compiled) return config._compiled;
+
+  const defaultEntryPages = config?.defaults?.entry_pages ?? DEFAULTS.entry_pages;
+  const defaultEntryPagesNormalized = defaultEntryPages.map(getRelativePath);
+
+  const compiledRules = (config?.rules || []).map((rule) => {
+    if (!rule || !rule.path) return null;
+    let regex = null;
+    try {
+      regex = new RegExp(rule.path);
+    } catch (e) {
+      // Ignore invalid regex patterns
+    }
+    const entryPagesNormalized = rule.entry_pages
+      ? (Array.isArray(rule.entry_pages) ? rule.entry_pages : [rule.entry_pages]).map(getRelativePath)
+      : null;
+    return {
+      ...rule,
+      regex,
+      entryPagesNormalized,
+    };
+  }).filter(Boolean);
+
+  const compiled = {
+    defaults: {
+      freshness_threshold_days: config?.defaults?.freshness_threshold_days ?? DEFAULTS.freshness_threshold_days,
+      thin_content_threshold: config?.defaults?.thin_content_threshold ?? DEFAULTS.thin_content_threshold,
+      entry_pages: defaultEntryPages,
+      entry_pages_normalized: defaultEntryPagesNormalized,
+    },
+    rules: compiledRules,
+  };
+
+  if (config) config._compiled = compiled;
+  return compiled;
+}
+
+/**
  * Resolves thresholds and flags for a given page URL/path based on the rules configuration.
  */
 export function resolveRulesForPath(config, url) {
   const relPath = getRelativePath(url);
+  const compiled = compileConfig(config);
 
   // Start with default thresholds
   const resolved = {
     exclude: false,
-    freshness_threshold_days: config.defaults?.freshness_threshold_days ?? DEFAULTS.freshness_threshold_days,
-    thin_content_threshold: config.defaults?.thin_content_threshold ?? DEFAULTS.thin_content_threshold,
-    entry_pages: config.defaults?.entry_pages ?? DEFAULTS.entry_pages,
+    freshness_threshold_days: compiled.defaults.freshness_threshold_days,
+    thin_content_threshold: compiled.defaults.thin_content_threshold,
+    entry_pages: compiled.defaults.entry_pages,
+    entry_pages_normalized: compiled.defaults.entry_pages_normalized,
   };
 
-  if (!config.rules || !Array.isArray(config.rules)) {
-    return resolved;
-  }
-
   // Find any matching custom rules. Rules later in the list override earlier ones.
-  for (const rule of config.rules) {
-    if (!rule || !rule.path) continue;
-    try {
-      const regex = new RegExp(rule.path);
-      if (regex.test(relPath)) {
-        if (rule.exclude !== undefined) {
-          resolved.exclude = !!rule.exclude;
-        }
-        if (rule.freshness_threshold_days !== undefined) {
-          resolved.freshness_threshold_days = Number(rule.freshness_threshold_days);
-        }
-        if (rule.thin_content_threshold !== undefined) {
-          resolved.thin_content_threshold = Number(rule.thin_content_threshold);
-        }
-        if (rule.entry_pages !== undefined) {
-          resolved.entry_pages = Array.isArray(rule.entry_pages) ? rule.entry_pages : [rule.entry_pages];
-        }
+  for (const rule of compiled.rules) {
+    if (rule.regex && rule.regex.test(relPath)) {
+      if (rule.exclude !== undefined) {
+        resolved.exclude = !!rule.exclude;
       }
-    } catch (err) {
-      // Ignore invalid regex patterns or log internally
+      if (rule.freshness_threshold_days !== undefined) {
+        resolved.freshness_threshold_days = Number(rule.freshness_threshold_days);
+      }
+      if (rule.thin_content_threshold !== undefined) {
+        resolved.thin_content_threshold = Number(rule.thin_content_threshold);
+      }
+      if (rule.entry_pages !== undefined) {
+        resolved.entry_pages = Array.isArray(rule.entry_pages) ? rule.entry_pages : [rule.entry_pages];
+        resolved.entry_pages_normalized = rule.entryPagesNormalized;
+      }
     }
   }
 
