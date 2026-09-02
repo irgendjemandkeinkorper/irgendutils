@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { getRelativePath, resolveRulesForPath } from './config.js';
+import { compileConfig, getRelativePath, resolveRulesForPath } from './config.js';
 
 // Documented Finding Priority Scores and Severities
 export const FINDING_TYPES = {
@@ -263,6 +263,9 @@ export function runAnalysis(pages, config, options = {}) {
     throw new Error(`Invalid current date override: "${options.currentDate}"`);
   }
 
+  // Pre-compile config rules to avoid re-compiling RegExps and re-normalizing entry pages per page
+  compileConfig(config);
+
   // 1. Exclude any pages that are configured to be excluded
   const activePages = [];
   for (const page of pages) {
@@ -415,7 +418,7 @@ export function runAnalysis(pages, config, options = {}) {
     // If no inbound links, check if it's a configured entry page
     if (inLinks.size === 0) {
       const rules = resolveRulesForPath(config, p.url);
-      const entryPagesNormalized = (rules.entry_pages || []).map(getRelativePath);
+      const entryPagesNormalized = rules.entry_pages_normalized || (rules.entry_pages || []).map(getRelativePath);
 
       if (!entryPagesNormalized.includes(p.relativePath)) {
         p.findings.push({
