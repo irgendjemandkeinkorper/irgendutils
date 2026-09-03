@@ -41,12 +41,12 @@ const RAW_TEXT_RES = {
 export function parseHTML(input) {
   const root = { type: 'root', tag: '#root', children: [] };
   const stack = [root];
-  const top = () => stack[stack.length - 1];
+  let top = root;
   let i = 0;
 
   const pushText = (text) => {
     if (text === '') return;
-    top().children.push({ type: 'text', text });
+    top.children.push({ type: 'text', text });
   };
 
   while (i < input.length) {
@@ -63,7 +63,7 @@ export function parseHTML(input) {
       COMMENT_RE.lastIndex = i;
       const m = COMMENT_RE.exec(input);
       if (m) {
-        top().children.push({ type: 'comment', text: m[1] });
+        top.children.push({ type: 'comment', text: m[1] });
         i = COMMENT_RE.lastIndex;
       } else {
         i += 4;
@@ -92,7 +92,10 @@ export function parseHTML(input) {
       for (let s = stack.length - 1; s > 0; s--) {
         if (stack[s].tag === tag) { idx = s; break; }
       }
-      if (idx !== -1) stack.length = idx; // pop through the matching element
+      if (idx !== -1) {
+        stack.length = idx; // pop through the matching element
+        top = stack[stack.length - 1];
+      }
       // else: stray close tag — ignore
       i += m[0].length;
       continue;
@@ -111,7 +114,12 @@ export function parseHTML(input) {
     const attrs = {};
     let selfClose = false;
     while (j < input.length) {
-      while (j < input.length && /\s/.test(input[j])) j++;
+      // Fast charCodeAt whitespace scanning instead of /\s/.test()
+      while (j < input.length) {
+        const c = input.charCodeAt(j);
+        if (c === 32 || c === 9 || c === 10 || c === 13 || c === 12) j++;
+        else break;
+      }
       if (input[j] === '>') { j++; break; }
       if (input[j] === '/') { selfClose = true; j++; continue; }
       ATTR_RE.lastIndex = j;
@@ -124,15 +132,20 @@ export function parseHTML(input) {
 
     // Implicit closes for tolerance
     if (BLOCK_STARTS.has(tag)) {
-      while (stack.length > 1 && (top().tag === 'p' || HEADINGS.has(top().tag))) {
+      while (stack.length > 1 && (top.tag === 'p' || HEADINGS.has(top.tag))) {
         stack.pop();
+        top = stack[stack.length - 1];
       }
     }
     if (tag === 'li') {
       for (let s = stack.length - 1; s > 0; s--) {
         const t = stack[s].tag;
         if (t === 'ul' || t === 'ol') break;
-        if (t === 'li') { stack.length = s; break; }
+        if (t === 'li') {
+          stack.length = s;
+          top = stack[stack.length - 1];
+          break;
+        }
       }
     }
     if (tag === 'tr' || tag === 'td' || tag === 'th') {
@@ -140,12 +153,16 @@ export function parseHTML(input) {
       for (let s = stack.length - 1; s > 0; s--) {
         const t = stack[s].tag;
         if (stop.has(t)) break;
-        if (t === 'tr' || t === 'td' || t === 'th') { stack.length = s; break; }
+        if (t === 'tr' || t === 'td' || t === 'th') {
+          stack.length = s;
+          top = stack[stack.length - 1];
+          break;
+        }
       }
     }
 
     const node = { type: 'element', tag, attrs, children: [] };
-    top().children.push(node);
+    top.children.push(node);
     i = j;
 
     if (VOID_TAGS.has(tag) || selfClose) continue;
@@ -162,6 +179,7 @@ export function parseHTML(input) {
     }
 
     stack.push(node);
+    top = node;
   }
 
   return root;
