@@ -297,12 +297,11 @@ class ComparisonRunner:
             for src in unmapped_before:
                 norm_src = normalize_url(src)
                 if norm_src in after_path_to_url:
-                    dest = after_path_to_url[norm_src]
+                    # Performance optimization: Use O(1) dict.pop() instead of O(N) list.remove()
+                    dest = after_path_to_url.pop(norm_src)
                     compare_pairs.append((src, dest))
                     mapped_before_urls.add(src)
                     mapped_after_urls.add(dest)
-                    # Remove from unmapped tracking for missing mappings
-                    unmapped_after.remove(dest)
 
         # 3. Report missing mappings for remaining unmapped URLs
         # Remaining unmapped before URLs
