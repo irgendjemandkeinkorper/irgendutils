@@ -1,6 +1,6 @@
 import os
 import fnmatch
-from typing import List, Union
+from typing import List, Union, Optional
 
 def format_bytes(num_bytes: Union[int, float]) -> str:
     """Formats raw bytes into a human-readable string with units."""
@@ -64,11 +64,27 @@ def parse_bytes(size_str: str) -> int:
         raise ValueError(f"Unknown size unit: {unit_part}")
 
 
+def fast_relpath(path: str, root: str) -> str:
+    """BOLT OPTIMIZATION: Computes relative path via fast string slicing when path is under root,
+    falling back to os.path.relpath to avoid expensive path resolution in hot loops.
+    """
+    if path == root:
+        return "."
+    root_prefix = root if (root.endswith(os.sep) or root.endswith("/")) else root + os.sep
+    if path.startswith(root_prefix):
+        return path[len(root_prefix):]
+    try:
+        return os.path.relpath(path, root)
+    except ValueError:
+        return path
+
+
 def should_exclude(
     path: str,
     exclude_paths: List[str] = None,
     exclude_globs: List[str] = None,
-    root_dir: str = None
+    root_dir: str = None,
+    norm_exclude_paths: Optional[List[str]] = None
 ) -> bool:
     """Checks if a path should be excluded based on list of exact paths or glob patterns.
 
@@ -86,16 +102,13 @@ def should_exclude(
     rel_path = None
     if root_dir:
         abs_root = os.path.abspath(root_dir)
-        try:
-            rel_path = os.path.relpath(abs_path, abs_root)
-        except ValueError:
-            # Different drives on Windows, etc.
-            pass
+        rel_path = fast_relpath(abs_path, abs_root)
 
-    # Check exact/prefix paths
-    if exclude_paths:
-        for ex_p in exclude_paths:
-            abs_ex_p = os.path.abspath(ex_p)
+    # Check exact/prefix paths (BOLT OPTIMIZATION: use pre-normalized exclude paths when provided)
+    ex_list = norm_exclude_paths if norm_exclude_paths is not None else exclude_paths
+    if ex_list:
+        for ex_p in ex_list:
+            abs_ex_p = ex_p if norm_exclude_paths is not None else os.path.abspath(ex_p)
             # Exact match
             if abs_path == abs_ex_p:
                 return True
