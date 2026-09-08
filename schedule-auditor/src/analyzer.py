@@ -9,6 +9,12 @@ SECRET_KEYWORDS = re.compile(
     re.IGNORECASE
 )
 
+# Command-line option secret masking pattern (pre-compiled to avoid re-compilation in hot loops)
+CMD_OPTION_SECRET_RE = re.compile(
+    r'(-[A-Za-z0-9_-]*(?:password|secret|token|key|auth|pwd|credential|pass)[A-Za-z0-9_-]*\s*=\s*|-[A-Za-z0-9_-]*(?:password|secret|token|key|auth|pwd|credential|pass)[A-Za-z0-9_-]*\s+)(["\']?)([^"\'\s]+)\2',
+    re.IGNORECASE
+)
+
 # Map common schedule identifiers to normalized names for overlap grouping
 SCHEDULE_NORMALIZATION = {
     "daily": "0 0 * * *",
@@ -70,11 +76,8 @@ class Analyzer:
                 val = match.group(3)
                 return f"{prefix}{quote}[REDACTED]{quote}"
 
-            # Match --option=value or --option value where option has secret keyword
-            pattern = r'(-[A-Za-z0-9_-]*(?:password|secret|token|key|auth|pwd|credential|pass)[A-Za-z0-9_-]*\s*=\s*|-[A-Za-z0-9_-]*(?:password|secret|token|key|auth|pwd|credential|pass)[A-Za-z0-9_-]*\s+)(["\']?)([^"\'\s]+)\2'
-
             try:
-                cmd_masked = re.sub(pattern, mask_cmd_secrets, cmd, flags=re.IGNORECASE)
+                cmd_masked = CMD_OPTION_SECRET_RE.sub(mask_cmd_secrets, cmd)
                 masked["command_or_unit"] = cmd_masked
             except Exception:
                 pass
