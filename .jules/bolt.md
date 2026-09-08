@@ -29,3 +29,7 @@
 ## 2025-05-20 - Indexing lookups for O(N*M) candidate matching in migration generators
 **Learning:** Performing linear scans across all destination pages for each source page in URL migration generators creates an O(N * M) bottleneck. Pre-building Map indexes for path, slug, and clean title during destination initialization reduces lookups to O(1) per source page. Additionally, maintaining a per-page Set (`matchedDestsForPage`) prevents duplicate candidate lookups and preserves strict strategy priority tiers (exact_path > canonical > slug > title).
 **Action:** Always pre-index candidate items into Map lookups when performing multi-attribute matching across large datasets, using a Set to preserve matching precedence per target item.
+
+## 2026-03-31 - Pre-compiling complex regex patterns at module scope in Python hot loops
+**Learning:** Calling `re.sub(pattern, ...)` with a raw string regex pattern inside tight loops (or per-item batch processors like `mask_credentials`) forces Python to parse and compile the regex pattern on every call if the internal compilation cache misses or churns. Pre-compiling complex regexes with `re.compile()` at module scope reduces execution time by ~30% (~133.6 ms down to ~92.9 ms for 10,000 items).
+**Action:** Always pre-compile regular expressions using `re.compile()` at module level when they are used inside hot functions or batch iteration loops.
