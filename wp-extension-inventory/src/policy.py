@@ -1,6 +1,9 @@
 import re
 from typing import Dict, Any, List, Optional
 
+# Pre-compile regex for version parsing
+VERSION_DIGITS_RE = re.compile(r'\d+')
+
 DEFAULT_POLICY = {
     "flag_inactive": True,
     "flag_unknown_version": True,
@@ -28,8 +31,8 @@ def parse_version(v_str: Optional[str]) -> tuple:
     if not v_str:
         return (0,)
     parts = []
-    # Extract consecutive digit matches
-    for part in re.findall(r'\d+', str(v_str)):
+    # Extract consecutive digit matches using pre-compiled regex
+    for part in VERSION_DIGITS_RE.findall(str(v_str)):
         try:
             parts.append(int(part))
         except ValueError:
@@ -63,6 +66,12 @@ class PolicyEngine:
                     }
                 else:
                     self.policy[k] = v
+
+        # Pre-convert policy lists to sets for fast O(1) membership lookups in evaluate loops
+        self._allowed_plugins = set(self.policy.get("allowed_plugins", []))
+        self._disallowed_plugins = set(self.policy.get("disallowed_plugins", []))
+        self._allowed_themes = set(self.policy.get("allowed_themes", []))
+        self._disallowed_themes = set(self.policy.get("disallowed_themes", []))
 
     def get_severity(self, rule_name: str) -> str:
         """Get severity of a rule from the rules dictionary, fallback to 'medium'."""
@@ -108,8 +117,8 @@ class PolicyEngine:
 
         # 2. Plugins Evaluation
         plugins = inventory.get("plugins", [])
-        allowed_plugins = self.policy.get("allowed_plugins", [])
-        disallowed_plugins = self.policy.get("disallowed_plugins", [])
+        allowed_plugins = self._allowed_plugins
+        disallowed_plugins = self._disallowed_plugins
 
         for plugin in plugins:
             name = plugin.get("name")
@@ -170,8 +179,8 @@ class PolicyEngine:
 
         # 3. Themes Evaluation
         themes = inventory.get("themes", [])
-        allowed_themes = self.policy.get("allowed_themes", [])
-        disallowed_themes = self.policy.get("disallowed_themes", [])
+        allowed_themes = self._allowed_themes
+        disallowed_themes = self._disallowed_themes
 
         for theme in themes:
             name = theme.get("name")
