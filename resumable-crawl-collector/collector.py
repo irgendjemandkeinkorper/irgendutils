@@ -7,6 +7,7 @@ import urllib.request
 import urllib.parse
 import urllib.robotparser
 import threading
+from collections import deque
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
@@ -72,7 +73,9 @@ class CrawlState:
         self.concurrency = concurrency
         self.store_bodies = store_bodies
 
-        self.queue = []  # list of {"url": url, "depth": depth, "redirect_count": r_count}
+        # Performance optimization: Use deque for O(1) pops/inserts and queued_urls set for O(1) duplicate checks
+        self.queue = deque()  # deque of {"url": url, "depth": depth, "redirect_count": r_count}
+        self.queued_urls = set()  # set of urls currently in queue for O(1) lookup
         self.visited = {}  # url -> info dict
         self.failed = {}   # url -> info dict
         self.robots_cache = {}  # host_origin -> robots_txt_content (str) or None
@@ -89,7 +92,9 @@ class CrawlState:
                     data = json.load(f)
                 self.allowed_origins = data.get("allowed_origins", self.allowed_origins)
                 self.allowed_paths = data.get("allowed_paths", self.allowed_paths)
-                self.queue = data.get("queue", self.queue)
+                loaded_queue = data.get("queue", [])
+                self.queue = deque(loaded_queue)
+                self.queued_urls = {item["url"] for item in loaded_queue if "url" in item}
                 self.visited = data.get("visited", self.visited)
                 self.failed = data.get("failed", self.failed)
                 self.robots_cache = data.get("robots_cache", self.robots_cache)
@@ -114,7 +119,7 @@ class CrawlState:
                     "max_retries": self.max_retries,
                     "concurrency": self.concurrency,
                     "store_bodies": self.store_bodies,
-                    "queue": self.queue,
+                    "queue": list(self.queue),
                     "visited": self.visited,
                     "failed": self.failed,
                     "robots_cache": self.robots_cache,
@@ -145,7 +150,8 @@ class CrawlState:
                     return None
 
                 if self.queue:
-                    item = self.queue.pop(0)
+                    item = self.queue.popleft()
+                    self.queued_urls.discard(item["url"])
                     self.active_count += 1
                     return item
 
@@ -170,7 +176,7 @@ class CrawlState:
                     continue
                 if url in self.visited or url in self.failed:
                     continue
-                if any(item["url"] == url for item in self.queue):
+                if url in self.queued_urls:
                     continue
                 if current_depth + 1 > self.depth_limit:
                     continue
@@ -180,6 +186,7 @@ class CrawlState:
                     "depth": current_depth + 1,
                     "redirect_count": 0
                 })
+                self.queued_urls.add(url)
                 added = True
             if added:
                 self.cond.notify_all()
@@ -195,13 +202,14 @@ class CrawlState:
                     continue
                 if url in self.visited or url in self.failed:
                     continue
-                if any(item["url"] == url for item in self.queue):
+                if url in self.queued_urls:
                     continue
                 self.queue.append({
                     "url": url,
                     "depth": 0,
                     "redirect_count": 0
                 })
+                self.queued_urls.add(url)
                 added = True
             if added:
                 self.cond.notify_all()
@@ -384,11 +392,12 @@ class CrawlCollector:
                                         "timestamp": datetime.now(timezone.utc).isoformat()
                                     }
                                 else:
-                                    self.state.queue.insert(0, {
+                                    self.state.queue.appendleft({
                                         "url": redirect_url,
                                         "depth": depth,
                                         "redirect_count": redirect_count + 1
                                     })
+                                    self.state.queued_urls.add(redirect_url)
                                     self.state.cond.notify_all()
                                 self.state.save()
                             return
