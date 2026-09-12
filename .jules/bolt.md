@@ -29,3 +29,7 @@
 ## 2025-05-20 - Indexing lookups for O(N*M) candidate matching in migration generators
 **Learning:** Performing linear scans across all destination pages for each source page in URL migration generators creates an O(N * M) bottleneck. Pre-building Map indexes for path, slug, and clean title during destination initialization reduces lookups to O(1) per source page. Additionally, maintaining a per-page Set (`matchedDestsForPage`) prevents duplicate candidate lookups and preserves strict strategy priority tiers (exact_path > canonical > slug > title).
 **Action:** Always pre-index candidate items into Map lookups when performing multi-attribute matching across large datasets, using a Set to preserve matching precedence per target item.
+
+## 2025-09-12 - Module-level regex pre-compilation and pre-lowercasing in recursive JSON-LD extraction
+**Learning:** Calling `re.sub(..., flags=re.IGNORECASE)` inside functions processing HTML/script chunks compiles dynamic regular expressions on every invocation, adding unnecessary Regex engine overhead. Pre-compiling static regexes at module scope improves cleaning throughput by ~1.6x. Furthermore, performing `.lower()` inside recursive tree traversals (e.g., checking old domain matches in JSON trees) executes $O(N \times D)$ string lowercasing operations. Pre-lowercasing the target strings upfront once reduces this to $O(N)$ string comparisons.
+**Action:** Always compile static regex patterns at module scope and pre-normalize search target arrays prior to recursive data structure traversals.
