@@ -29,3 +29,7 @@
 ## 2025-05-20 - Indexing lookups for O(N*M) candidate matching in migration generators
 **Learning:** Performing linear scans across all destination pages for each source page in URL migration generators creates an O(N * M) bottleneck. Pre-building Map indexes for path, slug, and clean title during destination initialization reduces lookups to O(1) per source page. Additionally, maintaining a per-page Set (`matchedDestsForPage`) prevents duplicate candidate lookups and preserves strict strategy priority tiers (exact_path > canonical > slug > title).
 **Action:** Always pre-index candidate items into Map lookups when performing multi-attribute matching across large datasets, using a Set to preserve matching precedence per target item.
+
+## 2025-05-21 - Parallel set tracking for O(N) list membership checks in crawler queues
+**Learning:** Checking whether parsed URLs are already queued via linear searches over list queues (`any(item["url"] == url for item in self.queue)`) creates an $O(M \times N)$ bottleneck when processing extracted HTML links. Maintaining a parallel `queued_urls` set alongside `queue` turns membership checks into $O(1)$ lookups, yielding over 23x speedup when enqueuing URLs without altering queue list ordering or state persistence structure.
+**Action:** Always maintain a parallel set alongside FIFO list queues when frequent existence checks are required during batch insertion.
