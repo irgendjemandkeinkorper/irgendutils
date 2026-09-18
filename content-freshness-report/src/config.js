@@ -54,8 +54,12 @@ export function resolveRulesForPath(config, url) {
   for (const rule of config.rules) {
     if (!rule || !rule.path) continue;
     try {
-      const regex = new RegExp(rule.path);
-      if (regex.test(relPath)) {
+      // BOLT OPTIMIZATION: Cache pre-compiled RegExp instance on rule object to avoid
+      // re-compiling the regex dynamically on every rule lookup across analyzed pages.
+      if (!rule._compiledRegex) {
+        rule._compiledRegex = new RegExp(rule.path);
+      }
+      if (rule._compiledRegex.test(relPath)) {
         if (rule.exclude !== undefined) {
           resolved.exclude = !!rule.exclude;
         }
