@@ -58,28 +58,35 @@ export function parseHTML(input) {
       continue;
     }
 
-    // Comment
-    if (input.startsWith('<!--', i)) {
-      COMMENT_RE.lastIndex = i;
-      const m = COMMENT_RE.exec(input);
-      if (m) {
-        top().children.push({ type: 'comment', text: m[1] });
-        i = COMMENT_RE.lastIndex;
-      } else {
-        i += 4;
+    const nextChar = input[i + 1];
+
+    // Comment or declaration starting with <! or <?
+    if (nextChar === '!') {
+      // Check for comment starting with '<!--' (charCode 45 is '-')
+      if (input.charCodeAt(i + 2) === 45 && input.charCodeAt(i + 3) === 45) {
+        COMMENT_RE.lastIndex = i;
+        const m = COMMENT_RE.exec(input);
+        if (m) {
+          top().children.push({ type: 'comment', text: m[1] });
+          i = COMMENT_RE.lastIndex;
+        } else {
+          i += 4;
+        }
+        continue;
       }
+      const end = input.indexOf('>', i);
+      i = end === -1 ? input.length : end + 1;
       continue;
     }
 
-    // Doctype / other declarations
-    if (input.startsWith('<!', i) || input.startsWith('<?', i)) {
+    if (nextChar === '?') {
       const end = input.indexOf('>', i);
       i = end === -1 ? input.length : end + 1;
       continue;
     }
 
     // Closing tag
-    if (input.startsWith('</', i)) {
+    if (nextChar === '/') {
       CLOSE_TAG_RE.lastIndex = i;
       const m = CLOSE_TAG_RE.exec(input);
       if (!m) {
@@ -111,7 +118,13 @@ export function parseHTML(input) {
     const attrs = {};
     let selfClose = false;
     while (j < input.length) {
-      while (j < input.length && /\s/.test(input[j])) j++;
+      // Fast character code check for whitespace (space 32, tab 9, LF 10, CR 13, FF 12)
+      // to avoid dynamic regex execution inside the inner attribute loop.
+      while (j < input.length) {
+        const c = input.charCodeAt(j);
+        if (c === 32 || c === 9 || c === 10 || c === 13 || c === 12) j++;
+        else break;
+      }
       if (input[j] === '>') { j++; break; }
       if (input[j] === '/') { selfClose = true; j++; continue; }
       ATTR_RE.lastIndex = j;
