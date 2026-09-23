@@ -286,12 +286,12 @@ class ComparisonRunner:
 
         # Fallback path-matching for unmapped before URLs
         unmapped_before = [u for u in flat_before.keys() if u not in mapped_before_urls]
-        unmapped_after = set(flat_after.keys()) - mapped_after_urls
+        unmapped_after = dict.fromkeys(u for u in flat_after.keys() if u not in mapped_after_urls)
 
         if self.fallback_path_match:
-            # Index unmapped after URLs by their normalized path in deterministic order
+            # Index unmapped after URLs by their normalized path in insertion order
             after_path_to_url: Dict[str, str] = {}
-            for u in sorted(unmapped_after):
+            for u in unmapped_after:
                 norm_p = normalize_url(u)
                 if norm_p and norm_p not in after_path_to_url:
                     after_path_to_url[norm_p] = u
@@ -303,9 +303,9 @@ class ComparisonRunner:
                     compare_pairs.append((src, dest))
                     mapped_before_urls.add(src)
                     mapped_after_urls.add(dest)
-                    # Bolt performance optimization: O(1) set discard and map key deletion
+                    # Bolt performance optimization: O(1) insertion-order dict deletion
                     # instead of O(N) list.remove(dest) search.
-                    unmapped_after.discard(dest)
+                    unmapped_after.pop(dest, None)
                     del after_path_to_url[norm_src]
 
         # 3. Report missing mappings for remaining unmapped URLs

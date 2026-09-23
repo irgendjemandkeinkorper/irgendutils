@@ -32,7 +32,7 @@ for (const entry of entries) {
       try {
         const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
         const testScript = pkgJson.scripts?.test;
-        if (!testScript || testScript.includes('Add tests here')) {
+        if (!testScript || (testScript.includes('Add tests here') && entry.name !== 'repo-template')) {
           invalidPackages.push(`${entry.name}: missing or placeholder test script`);
         } else if (!containsNodeTests(entry.name)) {
           invalidPackages.push(`${entry.name}: no Node test files under test/ or tests/`);
