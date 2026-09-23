@@ -28,10 +28,12 @@ DEFAULT_SEVERITY_POLICY = {
     "duplicate": "warning",
 }
 
+WS_RE = re.compile(r"\s+")
+
 def normalize_whitespace(text: Optional[str]) -> str:
     if text is None:
         return ""
-    return re.sub(r"\s+", " ", str(text)).strip()
+    return WS_RE.sub(" ", str(text)).strip()
 
 def normalize_url(url: Optional[str]) -> str:
     if not url:
@@ -284,10 +286,10 @@ class ComparisonRunner:
 
         # Fallback path-matching for unmapped before URLs
         unmapped_before = [u for u in flat_before.keys() if u not in mapped_before_urls]
-        unmapped_after = [u for u in flat_after.keys() if u not in mapped_after_urls]
+        unmapped_after = dict.fromkeys(u for u in flat_after.keys() if u not in mapped_after_urls)
 
         if self.fallback_path_match:
-            # Index unmapped after URLs by their normalized path
+            # Index unmapped after URLs by their normalized path in insertion order
             after_path_to_url: Dict[str, str] = {}
             for u in unmapped_after:
                 norm_p = normalize_url(u)
@@ -301,8 +303,10 @@ class ComparisonRunner:
                     compare_pairs.append((src, dest))
                     mapped_before_urls.add(src)
                     mapped_after_urls.add(dest)
-                    # Remove from unmapped tracking for missing mappings
-                    unmapped_after.remove(dest)
+                    # Bolt performance optimization: O(1) insertion-order dict deletion
+                    # instead of O(N) list.remove(dest) search.
+                    unmapped_after.pop(dest, None)
+                    del after_path_to_url[norm_src]
 
         # 3. Report missing mappings for remaining unmapped URLs
         # Remaining unmapped before URLs
