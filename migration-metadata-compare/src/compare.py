@@ -289,9 +289,9 @@ class ComparisonRunner:
         unmapped_after = set(flat_after.keys()) - mapped_after_urls
 
         if self.fallback_path_match:
-            # Index unmapped after URLs by their normalized path
+            # Index unmapped after URLs by their normalized path in deterministic order
             after_path_to_url: Dict[str, str] = {}
-            for u in unmapped_after:
+            for u in sorted(unmapped_after):
                 norm_p = normalize_url(u)
                 if norm_p and norm_p not in after_path_to_url:
                     after_path_to_url[norm_p] = u
