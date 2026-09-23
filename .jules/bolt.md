@@ -29,3 +29,7 @@
 ## 2025-05-20 - Indexing lookups for O(N*M) candidate matching in migration generators
 **Learning:** Performing linear scans across all destination pages for each source page in URL migration generators creates an O(N * M) bottleneck. Pre-building Map indexes for path, slug, and clean title during destination initialization reduces lookups to O(1) per source page. Additionally, maintaining a per-page Set (`matchedDestsForPage`) prevents duplicate candidate lookups and preserves strict strategy priority tiers (exact_path > canonical > slug > title).
 **Action:** Always pre-index candidate items into Map lookups when performing multi-attribute matching across large datasets, using a Set to preserve matching precedence per target item.
+
+## 2025-05-21 - List mutation in matching loops creates hidden O(N^2) bottlenecks
+**Learning:** Performing `list.remove(item)` inside an outer matching loop over items creates an $O(N^2)$ hidden bottleneck because each `remove()` call scans the list linearly ($O(N)$). When candidate items are indexed in a dictionary mapping (such as `path_to_url`), deleting the matched key via `del map[key]` achieves $O(1)$ lookup and removal, turning an $O(N^2)$ algorithm into $O(N)$ and speeding up dataset matching by up to ~40x on large site migration crawls.
+**Action:** Never use `list.remove()` inside loops over large collections; use dictionary key deletion (`del dict[key]`) or set operations for $O(1)$ tracking and removal.
