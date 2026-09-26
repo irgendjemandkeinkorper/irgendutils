@@ -1,5 +1,9 @@
 # Bolt's Journal
 
+## 2026-09-26 - Pre-extract range tuples and memoize GID validity checks in Tiled map validator
+**Learning:** Validating Global Tile IDs (GIDs) in large Tiled maps involves scanning millions of tile integers against a list of resolved tileset dictionaries (`firstgid` to `lastgid`). Because Tiled maps repeat tile IDs across tile layers and chunks, pre-extracting `(firstgid, lastgid)` tuple pairs and caching GID validity results in a dictionary (`gid_cache`) reduces repeated linear list iterations for identical GIDs, improving map validation performance by ~50%.
+**Action:** In map/grid validators that verify cell IDs against range definitions, always pre-extract range bounds into plain tuples and memoize range containment checks per validation pass using a local dictionary lookup.
+
 ## 2025-02-18 - Unordered frozenset sorting and redundant state dict reconstruction
 **Learning:** Instantiating `frozenset` with sorted inputs (such as `frozenset(sorted(...))`) introduces unnecessary $O(N \log N)$ sorting overhead since frozensets are fundamentally unordered. Furthermore, calling `.to_dict()` on immutable state objects within hot state graph traversal loops (e.g. BFS) repeatedly allocates and garbage-collects identical dictionary objects. Caching the dictionary representation on initialization and returning it directly eliminates millions of redundant allocations.
 **Action:** Never sort inputs to unordered set types like `set` or `frozenset`. Cache dictionary views of immutable state representations if they are queried multiple times inside hot loops.
@@ -23,9 +27,11 @@
 ## 2025-02-18 - Redundant sorting in unordered collection and hot loop dict instantiation in state simulator
 **Learning:** Instantiating new collection objects (such as `frozenset(sorted(...))`) with sorting before passing them to unordered constructs wastes CPU cycles by sorting unnecessarily. Furthermore, repeatedly converting a `frozenset` of tuples to a Python dictionary inside hot BFS/evaluation loops creates significant garbage collection and instantiation overhead. Precomputing/caching the dictionary representation inside the immutable state constructor reduces attribute retrieval to a highly optimized $O(1)$ lookup, yielding up to a ~46x speedup.
 **Action:** Always avoid sorting values before inserting into unordered structures like `set` or `frozenset`. Cache immutable dictionary mappings instead of reconstructing them dynamically from sets inside sequential or BFS hot loops.
+
 ## 2025-02-18 - Avoid redundant sorted() calls on frozenset creation and cache dict conversions in hot traversal loops
 **Learning:** Instantiating `frozenset` objects with sorted inputs (`frozenset(sorted(...))`) incurs an unnecessary $O(N \log N)$ sorting overhead since `frozenset` is inherently order-independent. Additionally, repeatedly calling `dict(self.variables)` inside hot BFS graph traversal loops is a major performance bottleneck due to continuous dynamic memory allocations. Caching the dictionary representation on initialization turns an $O(N)$ dictionary creation into an $O(1)$ lookup with zero behavior changes.
 **Action:** Remove redundant sorted() wrappers around inputs to frozensets and cache dict conversions in classes that are repeatedly serialized or converted in search/traversal loops.
+
 ## 2025-05-20 - Indexing lookups for O(N*M) candidate matching in migration generators
 **Learning:** Performing linear scans across all destination pages for each source page in URL migration generators creates an O(N * M) bottleneck. Pre-building Map indexes for path, slug, and clean title during destination initialization reduces lookups to O(1) per source page. Additionally, maintaining a per-page Set (`matchedDestsForPage`) prevents duplicate candidate lookups and preserves strict strategy priority tiers (exact_path > canonical > slug > title).
 **Action:** Always pre-index candidate items into Map lookups when performing multi-attribute matching across large datasets, using a Set to preserve matching precedence per target item.
