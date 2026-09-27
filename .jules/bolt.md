@@ -29,3 +29,7 @@
 ## 2025-05-20 - Indexing lookups for O(N*M) candidate matching in migration generators
 **Learning:** Performing linear scans across all destination pages for each source page in URL migration generators creates an O(N * M) bottleneck. Pre-building Map indexes for path, slug, and clean title during destination initialization reduces lookups to O(1) per source page. Additionally, maintaining a per-page Set (`matchedDestsForPage`) prevents duplicate candidate lookups and preserves strict strategy priority tiers (exact_path > canonical > slug > title).
 **Action:** Always pre-index candidate items into Map lookups when performing multi-attribute matching across large datasets, using a Set to preserve matching precedence per target item.
+
+## 2025-05-21 - Fast-path character check and maxsplit in command script extraction
+**Learning:** Calling `re.match` repeatedly on strings that don't contain key triggers (like `=` in env variable assignments) incurs unnecessary regex evaluation overhead. Checking for literal character triggers before evaluating regular expressions bypasses regex overhead entirely for clean commands. Additionally, using `str.split(maxsplit=1)` when only the first whitespace-delimited token is required avoids allocating list elements and substrings for all remaining arguments.
+**Action:** Use fast-path string inclusion checks before evaluating prefix regexes, and restrict `str.split()` to `maxsplit=1` when extracting only the head token of a command or query string.
