@@ -2,6 +2,11 @@ import re
 from typing import Dict, List, Set, Tuple, Optional, Any
 from .config import QAConfig
 
+# BOLT OPTIMIZATION: Module-compile static markup tag regular expressions to avoid
+# repeated compilation and LRU cache lookup overhead in tight validation loops.
+TAGS_RE = re.compile(r'</?([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?>')
+TAG_TOKENS_RE = re.compile(r'<(/?)([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?(/?)>')
+
 class QAIssue:
     """Represents a localized QA finding/issue."""
     def __init__(self, string_id: str, check_type: str, message: str, canonical_val: Optional[str] = None, locale_val: Optional[str] = None):
@@ -27,15 +32,21 @@ class LocalizationChecker:
 
     def _extract_placeholders(self, text: str) -> List[str]:
         placeholders = []
-        for pattern in self.config.get_placeholder_patterns():
-            matches = re.findall(pattern, text)
-            placeholders.extend(matches)
+        # BOLT OPTIMIZATION: Use pre-compiled re.Pattern objects if available on QAConfig
+        if hasattr(self.config, "get_compiled_placeholder_patterns"):
+            for pattern in self.config.get_compiled_placeholder_patterns():
+                matches = pattern.findall(text)
+                placeholders.extend(matches)
+        else:
+            for pattern in self.config.get_placeholder_patterns():
+                matches = re.findall(pattern, text)
+                placeholders.extend(matches)
         return sorted(placeholders)
 
     def _extract_tags(self, text: str) -> List[str]:
         # Simple HTML/XML tag finder
         # Captures open and close tag names, like 'b' from <b> or '</b>'
-        tags = re.findall(r'</?([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?>', text)
+        tags = TAGS_RE.findall(text)
         return tags
 
     def _is_tag_imbalanced(self, text: str) -> bool:
@@ -43,7 +54,7 @@ class LocalizationChecker:
         # We can use a stack to verify balanced tags (e.g. <b>...</b>)
         # We find all complete tags in the string in order of appearance
         # For simplicity, we ignore self-closing tags like <br/> or <img/>
-        tag_tokens = re.findall(r'<(/?)([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?(/?)>', text)
+        tag_tokens = TAG_TOKENS_RE.findall(text)
         stack = []
         for close_slash, tag_name, self_close_slash in tag_tokens:
             if self_close_slash == '/': # self-closing tag
