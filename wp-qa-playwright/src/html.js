@@ -9,6 +9,20 @@ const ROLE_TO_LANDMARK = {
   contentinfo: 'footer',
 };
 
+// BOLT OPTIMIZATION: Pre-compile landmark and role regular expressions at module scope.
+// Creating `new RegExp(...)` inside `extractStructure` on every HTML string call
+// causes unnecessary compilation overhead and garbage collection pressure.
+const LANDMARK_TAG_RES = LANDMARK_TAGS.map((tag) => ({
+  tag,
+  re: new RegExp(`<${tag}(\\s|>)`, 'i'),
+}));
+
+const ROLE_LANDMARK_RES = Object.entries(ROLE_TO_LANDMARK).map(([role, tag]) => ({
+  role,
+  tag,
+  re: new RegExp(`role\\s*=\\s*["']?${role}["']?`, 'i'),
+}));
+
 export function stripTags(html) {
   return decodeEntities(String(html).replace(/<[^>]*>/g, ' '))
     .replace(/\s+/g, ' ')
@@ -16,7 +30,11 @@ export function stripTags(html) {
 }
 
 export function decodeEntities(s) {
-  return String(s)
+  const str = String(s);
+  // Fast-path: Skip regular expression evaluation if no HTML entity marker exists
+  if (!str.includes('&')) return str;
+
+  return str
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
@@ -32,11 +50,11 @@ export function decodeEntities(s) {
 export function extractStructure(html) {
   const src = String(html);
   const landmarks = [];
-  for (const tag of LANDMARK_TAGS) {
-    if (new RegExp(`<${tag}(\\s|>)`, 'i').test(src)) landmarks.push(tag);
+  for (const { tag, re } of LANDMARK_TAG_RES) {
+    if (re.test(src)) landmarks.push(tag);
   }
-  for (const [role, tag] of Object.entries(ROLE_TO_LANDMARK)) {
-    if (!landmarks.includes(tag) && new RegExp(`role\\s*=\\s*["']?${role}["']?`, 'i').test(src)) {
+  for (const { tag, re } of ROLE_LANDMARK_RES) {
+    if (!landmarks.includes(tag) && re.test(src)) {
       landmarks.push(tag);
     }
   }
