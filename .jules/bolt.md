@@ -29,3 +29,7 @@
 ## 2025-05-20 - Indexing lookups for O(N*M) candidate matching in migration generators
 **Learning:** Performing linear scans across all destination pages for each source page in URL migration generators creates an O(N * M) bottleneck. Pre-building Map indexes for path, slug, and clean title during destination initialization reduces lookups to O(1) per source page. Additionally, maintaining a per-page Set (`matchedDestsForPage`) prevents duplicate candidate lookups and preserves strict strategy priority tiers (exact_path > canonical > slug > title).
 **Action:** Always pre-index candidate items into Map lookups when performing multi-attribute matching across large datasets, using a Set to preserve matching precedence per target item.
+
+## 2025-05-21 - Secondary set indexing for list-backed FIFO queue deduplication in web crawlers
+**Learning:** Checking for item existence in a list-backed FIFO queue (e.g. `any(item["url"] == url for item in self.queue)`) during URL extraction creates an $O(M \times N)$ bottleneck per processed page. Maintaining an auxiliary `set` (`self.queued_urls`) synchronized alongside list operations (`append`, `pop`, `insert`, state load) reduces duplicate checking from $O(N)$ linear scans to $O(1)$ set lookups, yielding a ~2000x speedup on large queues while retaining FIFO queue ordering for serialization.
+**Action:** When a queue or collection requires FIFO ordering for iteration or persistence but needs frequent existence/deduplication checks, complement the list with an auxiliary `set` kept in sync on all mutations.

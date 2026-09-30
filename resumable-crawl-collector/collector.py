@@ -63,6 +63,8 @@ class CrawlState:
         self.cond = threading.Condition(self.lock)
 
         self.allowed_origins = allowed_origins or []
+        # BOLT OPTIMIZATION: Maintain set lookups for O(1) allowed origin checking
+        self.allowed_origins_set = set(self.allowed_origins)
         self.allowed_paths = allowed_paths or []
         self.depth_limit = depth_limit
         self.max_pages = max_pages
@@ -73,6 +75,8 @@ class CrawlState:
         self.store_bodies = store_bodies
 
         self.queue = []  # list of {"url": url, "depth": depth, "redirect_count": r_count}
+        # BOLT OPTIMIZATION: Maintain queued_urls set for O(1) url deduplication lookups instead of O(N) linear scans on self.queue
+        self.queued_urls = set()
         self.visited = {}  # url -> info dict
         self.failed = {}   # url -> info dict
         self.robots_cache = {}  # host_origin -> robots_txt_content (str) or None
@@ -88,8 +92,10 @@ class CrawlState:
                 with open(self.state_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 self.allowed_origins = data.get("allowed_origins", self.allowed_origins)
+                self.allowed_origins_set = set(self.allowed_origins)
                 self.allowed_paths = data.get("allowed_paths", self.allowed_paths)
                 self.queue = data.get("queue", self.queue)
+                self.queued_urls = {item["url"] for item in self.queue if isinstance(item, dict) and "url" in item}
                 self.visited = data.get("visited", self.visited)
                 self.failed = data.get("failed", self.failed)
                 self.robots_cache = data.get("robots_cache", self.robots_cache)
@@ -146,6 +152,7 @@ class CrawlState:
 
                 if self.queue:
                     item = self.queue.pop(0)
+                    self.queued_urls.discard(item["url"])
                     self.active_count += 1
                     return item
 
@@ -170,7 +177,7 @@ class CrawlState:
                     continue
                 if url in self.visited or url in self.failed:
                     continue
-                if any(item["url"] == url for item in self.queue):
+                if url in self.queued_urls:
                     continue
                 if current_depth + 1 > self.depth_limit:
                     continue
@@ -180,6 +187,7 @@ class CrawlState:
                     "depth": current_depth + 1,
                     "redirect_count": 0
                 })
+                self.queued_urls.add(url)
                 added = True
             if added:
                 self.cond.notify_all()
@@ -195,13 +203,14 @@ class CrawlState:
                     continue
                 if url in self.visited or url in self.failed:
                     continue
-                if any(item["url"] == url for item in self.queue):
+                if url in self.queued_urls:
                     continue
                 self.queue.append({
                     "url": url,
                     "depth": 0,
                     "redirect_count": 0
                 })
+                self.queued_urls.add(url)
                 added = True
             if added:
                 self.cond.notify_all()
@@ -218,7 +227,7 @@ class CrawlState:
 
     def _is_allowed(self, url):
         origin = get_origin(url)
-        if origin not in self.allowed_origins:
+        if origin not in self.allowed_origins_set:
             return False
         if self.allowed_paths:
             parsed = urllib.parse.urlparse(url)
@@ -389,6 +398,7 @@ class CrawlCollector:
                                         "depth": depth,
                                         "redirect_count": redirect_count + 1
                                     })
+                                    self.state.queued_urls.add(redirect_url)
                                     self.state.cond.notify_all()
                                 self.state.save()
                             return
