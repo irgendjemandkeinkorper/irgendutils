@@ -226,11 +226,16 @@ def parse_wxr(wxr_path: Path, old_url: str = None, new_url: str = None) -> tuple
                     # We should reconstruct its full path by placing it in the same directory as parent
                     if norm_path:
                         try:
-                            parent_path_obj = Path(norm_path)
+                            # BOLT OPTIMIZATION: Avoid instantiating Path objects inside loop; use string splitting & formatting
                             if "/" in thumb_filename or "\\" in thumb_filename:
                                 thumb_path = thumb_filename.replace("\\", "/")
                             else:
-                                thumb_path = str(parent_path_obj.with_name(thumb_filename)).replace("\\", "/")
+                                clean_norm = norm_path.replace("\\", "/")
+                                idx = clean_norm.rfind('/')
+                                if idx != -1:
+                                    thumb_path = f"{clean_norm[:idx]}/{thumb_filename}"
+                                else:
+                                    thumb_path = thumb_filename
 
                             ref = Reference(thumb_filename, source_desc, "Exact", "Attachment Serialized Metadata Thumbnail")
                             ref.normalized_path = thumb_path
