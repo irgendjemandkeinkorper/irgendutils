@@ -165,7 +165,8 @@ class ReconciliationEngine:
 
             # 3. Check Heuristic Filename Match (Filename exists, but path/directory is different)
             else:
-                ref_filename = Path(ref_path).name.lower()
+                # BOLT OPTIMIZATION: Extract filename and lowercase using string splitting to avoid Path object creation
+                ref_filename = (ref_path.rsplit('/', 1)[-1].rsplit('\\', 1)[-1]).lower()
                 matched_paths = self.filename_to_paths.get(ref_filename, [])
 
                 if matched_paths:
@@ -245,7 +246,8 @@ class ReconciliationEngine:
             path_parent, path_suffix = parse_wp_suffix(path)
 
             # Check for name-only heuristic matches anywhere on disk
-            ref_filename = Path(path).name.lower()
+            # BOLT OPTIMIZATION: Extract filename and lowercase using string splitting to avoid Path object creation
+            ref_filename = (path.rsplit('/', 1)[-1].rsplit('\\', 1)[-1]).lower()
             heuristics_on_disk = self.filename_to_paths.get(ref_filename, [])
 
             missing_report.append({
