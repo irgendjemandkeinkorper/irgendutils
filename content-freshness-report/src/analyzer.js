@@ -358,30 +358,40 @@ export function runAnalysis(pages, config, options = {}) {
   });
 
   // Flag duplicate titles
+  // Performance optimization: Pre-map group URLs once and slice around index i
+  // to avoid O(N^2) inner filter+map operations per duplicate page.
   for (const [title, indices] of titleGroups.entries()) {
     if (indices.length > 1) {
-      for (const idx of indices) {
+      const groupUrls = indices.map((i) => pageResults[i].url);
+      for (let i = 0; i < indices.length; i++) {
+        const idx = indices[i];
         const p = pageResults[idx];
+        const sharedWith = groupUrls.slice(0, i).concat(groupUrls.slice(i + 1));
         p.findings.push({
           ...FINDING_TYPES.DUPLICATE_TITLE,
           message: `Duplicate title found with ${indices.length - 1} other page(s): "${p.title}"`,
           duplicateValue: p.title,
-          sharedWith: indices.filter((i) => i !== idx).map((i) => pageResults[i].url),
+          sharedWith,
         });
       }
     }
   }
 
   // Flag duplicate descriptions
+  // Performance optimization: Pre-map group URLs once and slice around index i
+  // to avoid O(N^2) inner filter+map operations per duplicate page.
   for (const [desc, indices] of descGroups.entries()) {
     if (indices.length > 1) {
-      for (const idx of indices) {
+      const groupUrls = indices.map((i) => pageResults[i].url);
+      for (let i = 0; i < indices.length; i++) {
+        const idx = indices[i];
         const p = pageResults[idx];
+        const sharedWith = groupUrls.slice(0, i).concat(groupUrls.slice(i + 1));
         p.findings.push({
           ...FINDING_TYPES.DUPLICATE_DESC,
           message: `Duplicate meta description found with ${indices.length - 1} other page(s): "${p.metaDesc}"`,
           duplicateValue: p.metaDesc,
-          sharedWith: indices.filter((i) => i !== idx).map((i) => pageResults[i].url),
+          sharedWith,
         });
       }
     }
