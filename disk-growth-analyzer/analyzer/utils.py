@@ -68,43 +68,63 @@ def should_exclude(
     path: str,
     exclude_paths: List[str] = None,
     exclude_globs: List[str] = None,
-    root_dir: str = None
+    root_dir: str = None,
+    norm_exclude_paths: List[str] = None
 ) -> bool:
     """Checks if a path should be excluded based on list of exact paths or glob patterns.
 
     All paths are normalized to absolute paths before comparison.
     If root_dir is provided, also checks relative paths.
+
+    Performance Optimizations (Bolt):
+    - Fast return if no exclusion rules provided.
+    - Uses pre-normalized exclude paths (`norm_exclude_paths`) to avoid redundant `os.path.abspath` calls per entry.
+    - Fast-path string slicing for relative path calculation instead of `os.path.relpath`.
+    - Lazy splitting of path parts for glob checks and lazy path normalization fallback.
     """
     if not path:
+        return False
+
+    if not exclude_paths and not exclude_globs:
         return False
 
     # Normalize target path to absolute
     abs_path = os.path.abspath(path)
     base_name = os.path.basename(abs_path)
 
-    # Calculate relative path if root_dir is specified
+    # Fast relative path calculation when inside root_dir
     rel_path = None
     if root_dir:
         abs_root = os.path.abspath(root_dir)
-        try:
-            rel_path = os.path.relpath(abs_path, abs_root)
-        except ValueError:
-            # Different drives on Windows, etc.
-            pass
+        if abs_path == abs_root:
+            rel_path = "."
+        elif abs_path.startswith(abs_root + os.sep):
+            rel_path = abs_path[len(abs_root) + len(os.sep):]
+        elif os.sep != '/' and abs_path.startswith(abs_root + "/"):
+            rel_path = abs_path[len(abs_root) + 1:]
+        else:
+            try:
+                rel_path = os.path.relpath(abs_path, abs_root)
+            except ValueError:
+                # Different drives on Windows, etc.
+                pass
 
     # Check exact/prefix paths
     if exclude_paths:
-        for ex_p in exclude_paths:
-            abs_ex_p = os.path.abspath(ex_p)
+        ex_iter = norm_exclude_paths if norm_exclude_paths is not None else (
+            os.path.abspath(ex_p) for ex_p in exclude_paths
+        )
+        for abs_ex_p in ex_iter:
             # Exact match
             if abs_path == abs_ex_p:
                 return True
             # Subdirectory match (must check with directory separator boundary)
-            if abs_path.startswith(abs_ex_p + os.sep) or abs_path.startswith(abs_ex_p + "/"):
+            if abs_path.startswith(abs_ex_p + os.sep) or (os.sep != '/' and abs_path.startswith(abs_ex_p + "/")):
                 return True
 
     # Check glob patterns
     if exclude_globs:
+        parts = None
         for pattern in exclude_globs:
             # Match base name (e.g. *.log)
             if fnmatch.fnmatch(base_name, pattern):
@@ -115,9 +135,10 @@ def should_exclude(
             # Match relative path if possible
             if rel_path and fnmatch.fnmatch(rel_path, pattern):
                 return True
-            # Match parts of path (e.g. dir names like '.git')
-            parts = abs_path.split(os.sep)
-            if any(fnmatch.fnmatch(part, pattern) for part in parts if part):
+            # Match parts of path (e.g. dir names like '.git') - lazily split path
+            if parts is None:
+                parts = [p for p in abs_path.split(os.sep) if p]
+            if any(fnmatch.fnmatch(part, pattern) for part in parts):
                 return True
 
     return False
