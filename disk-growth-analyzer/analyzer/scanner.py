@@ -42,10 +42,19 @@ def scan_directory(
             print(f"Error: {msg}", file=sys.stderr)
         return
 
-    # Helper to clean up path relative to scan root
+    # Pre-normalize exclude paths once to avoid recomputing os.path.abspath per entry (Bolt)
+    norm_exclude_paths = [
+        os.path.abspath(p) for p in exclude_paths
+    ] if exclude_paths else None
+
+    # Fast string-slicing relative path helper (Bolt)
     def get_rel_path(p: str) -> str:
         if p == abs_root:
             return "."
+        if p.startswith(abs_root + os.sep):
+            return p[len(abs_root) + 1:]
+        if p.startswith(abs_root + "/"):
+            return p[len(abs_root) + 1:]
         try:
             return os.path.relpath(p, abs_root)
         except ValueError:
@@ -54,7 +63,7 @@ def scan_directory(
     # Recursive directory walker using os.scandir for performance and lazy traversal
     def _walk(current_dir: str) -> Iterator[Dict[str, Any]]:
         # Exclude check for the current directory itself
-        if should_exclude(current_dir, exclude_paths, exclude_globs, abs_root):
+        if should_exclude(current_dir, exclude_paths, exclude_globs, abs_root, norm_exclude_paths):
             return
 
         entries = []
@@ -84,7 +93,7 @@ def scan_directory(
                 rel_path = get_rel_path(full_path)
 
                 # Check exclusions
-                if should_exclude(full_path, exclude_paths, exclude_globs, abs_root):
+                if should_exclude(full_path, exclude_paths, exclude_globs, abs_root, norm_exclude_paths):
                     continue
 
                 # Check symlink (never follow by default)
