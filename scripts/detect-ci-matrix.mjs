@@ -33,9 +33,9 @@ for (const entry of entries) {
         const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
         const testScript = pkgJson.scripts?.test;
         if (!testScript || testScript.includes('Add tests here')) {
-          invalidPackages.push(`${entry.name}: missing or placeholder test script`);
+          invalidPackages.push({ dir: entry.name, reason: `${entry.name}: missing or placeholder test script` });
         } else if (!containsNodeTests(entry.name)) {
-          invalidPackages.push(`${entry.name}: no Node test files under test/ or tests/`);
+          invalidPackages.push({ dir: entry.name, reason: `${entry.name}: no Node test files under test/ or tests/` });
         } else {
           allPackages.push({
             name: entry.name,
@@ -54,12 +54,6 @@ for (const entry of entries) {
       });
     }
   }
-}
-
-if (invalidPackages.length) {
-  console.error('CI test coverage guard failed:');
-  for (const issue of invalidPackages) console.error(`- ${issue}`);
-  process.exit(1);
 }
 
 let changedPackages = [];
@@ -113,6 +107,18 @@ if (eventName === 'workflow_dispatch') {
 }
 
 console.log('Target packages for test execution:', changedPackages.map(p => p.dir));
+
+// Only validate packages that are actually being targeted / changed
+const relevantInvalid = invalidPackages.filter(item =>
+  changedPackages.some(p => p.dir === item.dir) ||
+  (eventName !== 'workflow_dispatch' && typeof changedDirs !== 'undefined' && changedDirs.has(item.dir))
+);
+
+if (relevantInvalid.length) {
+  console.error('CI test coverage guard failed:');
+  for (const issue of relevantInvalid) console.error(`- ${issue.reason}`);
+  process.exit(1);
+}
 
 // Output for GitHub Actions matrix
 const matrix = {
