@@ -28,10 +28,12 @@ DEFAULT_SEVERITY_POLICY = {
     "duplicate": "warning",
 }
 
+WHITESPACE_RE = re.compile(r"\s+")
+
 def normalize_whitespace(text: Optional[str]) -> str:
     if text is None:
         return ""
-    return re.sub(r"\s+", " ", str(text)).strip()
+    return WHITESPACE_RE.sub(" ", str(text)).strip()
 
 def normalize_url(url: Optional[str]) -> str:
     if not url:
@@ -297,16 +299,14 @@ class ComparisonRunner:
             for src in unmapped_before:
                 norm_src = normalize_url(src)
                 if norm_src in after_path_to_url:
-                    dest = after_path_to_url[norm_src]
+                    dest = after_path_to_url.pop(norm_src)
                     compare_pairs.append((src, dest))
                     mapped_before_urls.add(src)
                     mapped_after_urls.add(dest)
-                    # Remove from unmapped tracking for missing mappings
-                    unmapped_after.remove(dest)
 
         # 3. Report missing mappings for remaining unmapped URLs
         # Remaining unmapped before URLs
-        for src in sorted(list(set(flat_before.keys()) - mapped_before_urls)):
+        for src in sorted(set(flat_before.keys()) - mapped_before_urls):
             severity = self.get_severity("mapping")
             if severity != "ignore":
                 findings.append(Finding(
@@ -319,7 +319,7 @@ class ComparisonRunner:
                 ))
 
         # Remaining unmapped after URLs
-        for dest in sorted(list(set(flat_after.keys()) - mapped_after_urls)):
+        for dest in sorted(set(flat_after.keys()) - mapped_after_urls):
             severity = self.get_severity("mapping")
             if severity != "ignore":
                 findings.append(Finding(
