@@ -20,6 +20,9 @@ DEFAULT_POLICY = {
     }
 }
 
+# Performance optimization: Pre-compile digit regex pattern at module scope
+DIGITS_RE = re.compile(r'\d+')
+
 def parse_version(v_str: Optional[str]) -> tuple:
     """
     Parse a version string into a comparable tuple of integers.
@@ -27,13 +30,8 @@ def parse_version(v_str: Optional[str]) -> tuple:
     """
     if not v_str:
         return (0,)
-    parts = []
-    # Extract consecutive digit matches
-    for part in re.findall(r'\d+', str(v_str)):
-        try:
-            parts.append(int(part))
-        except ValueError:
-            parts.append(0)
+    # Performance optimization: Use pre-compiled regex and list comprehension
+    parts = [int(p) for p in DIGITS_RE.findall(str(v_str))]
     return tuple(parts) if parts else (0,)
 
 def is_version_less_than(v1: Optional[str], v2: Optional[str]) -> bool:
@@ -42,11 +40,13 @@ def is_version_less_than(v1: Optional[str], v2: Optional[str]) -> bool:
     """
     t1 = parse_version(v1)
     t2 = parse_version(v2)
-    max_len = max(len(t1), len(t2))
-    # Pad shorter tuple with zeros
-    t1_padded = t1 + (0,) * (max_len - len(t1))
-    t2_padded = t2 + (0,) * (max_len - len(t2))
-    return t1_padded < t2_padded
+    l1, l2 = len(t1), len(t2)
+    # Performance optimization: Pad only the shorter tuple to avoid redundant allocations
+    if l1 < l2:
+        t1 = t1 + (0,) * (l2 - l1)
+    elif l2 < l1:
+        t2 = t2 + (0,) * (l1 - l2)
+    return t1 < t2
 
 
 class PolicyEngine:
