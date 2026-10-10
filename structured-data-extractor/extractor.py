@@ -50,6 +50,12 @@ class JSONLDParser(HTMLParser):
             self.current_block.append(data)
 
 
+# Pre-compile CDATA wrapper regexes at module scope to avoid dynamic recompilation in clean_json_ld_text
+CDATA_START_RE = re.compile(r'(?://|/\*)\s*<!\[CDATA\[\s*(?:\*/)?', re.IGNORECASE)
+CDATA_END_RE = re.compile(r'(?://|/\*)\s*\]\]>\s*(?:\*/)?', re.IGNORECASE)
+CDATA_STRIP_RE = re.compile(r'<!\[CDATA\[|\]\]>', re.IGNORECASE)
+
+
 def clean_json_ld_text(text: str) -> str:
     """
     Clean up JS comments, HTML comments, and CDATA wrappers around JSON-LD content.
@@ -60,11 +66,11 @@ def clean_json_ld_text(text: str) -> str:
     if text.startswith("<!--") and text.endswith("-->"):
         text = text[4:-3].strip()
 
-    # Strip CDATA wrappers
-    # Matches patterns like //<![CDATA[ or /* <![CDATA[ */ or // ]]> or /* ]]> */
-    text = re.sub(r'(?://|/\*)\s*<!\[CDATA\[\s*(?:\*/)?', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'(?://|/\*)\s*\]\]>\s*(?:\*/)?', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'<!\[CDATA\[|\]\]>', '', text, flags=re.IGNORECASE)
+    # Fast-path check: avoid regex matching if no CDATA marker is present
+    if "<![" in text or "]]>" in text or "cdata" in text or "CDATA" in text:
+        text = CDATA_START_RE.sub('', text)
+        text = CDATA_END_RE.sub('', text)
+        text = CDATA_STRIP_RE.sub('', text)
 
     return text.strip()
 
@@ -94,27 +100,32 @@ def is_node(val: Any) -> bool:
     return False
 
 
-def check_old_domains(val: Any, old_domains: List[str]) -> bool:
+def check_old_domains(val: Any, old_domains: Any) -> bool:
     """
     Recursively scans JSON value to check if any string contains any of the specified old domains.
     """
     if not old_domains:
         return False
 
-    if isinstance(val, str):
-        val_lower = val.lower()
-        for domain in old_domains:
-            if domain.lower() in val_lower:
-                return True
-    elif isinstance(val, list):
-        for item in val:
-            if check_old_domains(item, old_domains):
-                return True
-    elif isinstance(val, dict):
-        for k, v in val.items():
-            if check_old_domains(k, old_domains) or check_old_domains(v, old_domains):
-                return True
-    return False
+    normalized_domains = tuple(d.lower() for d in old_domains if d)
+
+    def _check_rec(v: Any) -> bool:
+        if isinstance(v, str):
+            v_lower = v.lower()
+            for domain in normalized_domains:
+                if domain in v_lower:
+                    return True
+        elif isinstance(v, list):
+            for item in v:
+                if _check_rec(item):
+                    return True
+        elif isinstance(v, dict):
+            for k, item_val in v.items():
+                if _check_rec(k) or _check_rec(item_val):
+                    return True
+        return False
+
+    return _check_rec(val)
 
 
 def extract_from_value(
@@ -231,7 +242,9 @@ def parse_html_file(
     Parses a single HTML file to extract, normalize, and validate JSON-LD structured data.
     """
     if old_domains is None:
-        old_domains = []
+        old_domains = ()
+    else:
+        old_domains = tuple(d.lower() for d in old_domains if d)
 
     prov_url = url or ""
     prov_file = filepath
