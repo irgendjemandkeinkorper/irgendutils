@@ -304,6 +304,16 @@ class TiledValidator:
                     "name": tileset_dict.get("name", "unnamed")
                 })
 
+        # Memoization cache for tile GID validity range lookups across tilesets
+        valid_gid_cache: Dict[int, bool] = {}
+
+        def is_valid_gid(clean_gid: int) -> bool:
+            valid = valid_gid_cache.get(clean_gid)
+            if valid is None:
+                valid = any(r_ts["firstgid"] <= clean_gid <= r_ts["lastgid"] for r_ts in resolved_tilesets)
+                valid_gid_cache[clean_gid] = valid
+            return valid
+
         # Validate layers
         layers = map_data.get("layers", [])
         layer_names = []
@@ -381,12 +391,7 @@ class TiledValidator:
                                 if clean_gid == 0:
                                     continue
                                 # Validate GID is covered by tilesets
-                                valid_gid = False
-                                for r_ts in resolved_tilesets:
-                                    if r_ts["firstgid"] <= clean_gid <= r_ts["lastgid"]:
-                                        valid_gid = True
-                                        break
-                                if not valid_gid:
+                                if not is_valid_gid(clean_gid):
                                     x = idx % l_width if l_width else 0
                                     y = idx // l_width if l_width else 0
                                     self._add_finding(
@@ -433,12 +438,7 @@ class TiledValidator:
                                     if clean_gid == 0:
                                         continue
                                     # Validate GID
-                                    valid_gid = False
-                                    for r_ts in resolved_tilesets:
-                                        if r_ts["firstgid"] <= clean_gid <= r_ts["lastgid"]:
-                                            valid_gid = True
-                                            break
-                                    if not valid_gid:
+                                    if not is_valid_gid(clean_gid):
                                         tile_x = (c_x or 0) + (idx % c_w if c_w else 0)
                                         tile_y = (c_y or 0) + (idx // c_w if c_w else 0)
                                         self._add_finding(
@@ -484,18 +484,12 @@ class TiledValidator:
                             obj_gid_raw = obj.get("gid")
                             if obj_gid_raw is not None:
                                 obj_gid = obj_gid_raw & ~FLIP_FLAGS
-                                if obj_gid > 0:
-                                    valid_gid = False
-                                    for r_ts in resolved_tilesets:
-                                        if r_ts["firstgid"] <= obj_gid <= r_ts["lastgid"]:
-                                            valid_gid = True
-                                            break
-                                    if not valid_gid:
-                                        self._add_finding(
-                                            findings, map_path, "error", "gid",
-                                            f"Object '{obj_name}' has invalid GID {obj_gid} (raw: {obj_gid_raw}) in layer '{l_name}'.",
-                                            {"object_id": obj_id, "object_name": obj_name, "layer": l_name, "gid": obj_gid}
-                                        )
+                                if obj_gid > 0 and not is_valid_gid(obj_gid):
+                                    self._add_finding(
+                                        findings, map_path, "error", "gid",
+                                        f"Object '{obj_name}' has invalid GID {obj_gid} (raw: {obj_gid_raw}) in layer '{l_name}'.",
+                                        {"object_id": obj_id, "object_name": obj_name, "layer": l_name, "gid": obj_gid}
+                                    )
 
                             # Validate object custom properties
                             obj_props = self._get_properties(obj)

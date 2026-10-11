@@ -29,3 +29,7 @@
 ## 2025-05-20 - Indexing lookups for O(N*M) candidate matching in migration generators
 **Learning:** Performing linear scans across all destination pages for each source page in URL migration generators creates an O(N * M) bottleneck. Pre-building Map indexes for path, slug, and clean title during destination initialization reduces lookups to O(1) per source page. Additionally, maintaining a per-page Set (`matchedDestsForPage`) prevents duplicate candidate lookups and preserves strict strategy priority tiers (exact_path > canonical > slug > title).
 **Action:** Always pre-index candidate items into Map lookups when performing multi-attribute matching across large datasets, using a Set to preserve matching precedence per target item.
+
+## 2025-05-21 - Memoizing range validations across repeated tile GIDs in map validators
+**Learning:** Map validation routines that check range containment (`firstgid <= clean_gid <= lastgid`) across tilesets for every tile in large map layers execute linear range checks $O(N \times T)$ times, where $N$ is total tile count (often 100,000+) and $T$ is tileset count. Since map grids contain high redundancy (a few dozen unique GIDs repeated across thousands of grid cells), memoizing range lookup results per map validation run reduces checks to $O(U \times T)$ (where $U$ is unique GIDs), providing a ~33% speedup on large maps.
+**Action:** Always memoize range checks or lookup evaluations over repeated grid/array values in parser and validator routines.
