@@ -1,5 +1,6 @@
 import json
-from typing import Dict, List, Optional, Any, Set
+import re
+from typing import Dict, List, Optional, Any, Set, Tuple
 
 DEFAULT_CONFIG = {
     "ignore_rules": {
@@ -35,6 +36,8 @@ class QAConfig:
         self.data = DEFAULT_CONFIG.copy()
         if config_data:
             self._deep_update(self.data, config_data)
+        # Pre-cache compiled patterns and normalized lookup sets for fast checking
+        self._cache_config()
 
     def _deep_update(self, base: Dict[str, Any], update: Dict[str, Any]) -> None:
         for k, v in update.items():
@@ -42,6 +45,34 @@ class QAConfig:
                 self._deep_update(base[k], v)
             else:
                 base[k] = v
+
+    def _cache_config(self) -> None:
+        """Cache pre-compiled regexes, sets, and thresholds to eliminate hot-loop overhead."""
+        global_rules = self.data.get("ignore_rules", {}).get("global", {})
+        self._global_ignored_ids: Set[str] = set(global_rules.get("ignored_ids", []))
+        self._global_ignored_checks: Set[str] = set(global_rules.get("ignored_checks", []))
+
+        self._locale_ignored_ids: Dict[str, Set[str]] = {}
+        self._locale_ignored_checks: Dict[str, Set[str]] = {}
+        for loc, rules in self.data.get("ignore_rules", {}).get("locales", {}).items():
+            self._locale_ignored_ids[loc] = set(rules.get("ignored_ids", []))
+            self._locale_ignored_checks[loc] = set(rules.get("ignored_checks", []))
+
+        self._compiled_placeholder_patterns: List[re.Pattern] = [
+            re.compile(pat) for pat in self.data.get("placeholder_patterns", [])
+        ]
+        self._min_untranslated_length: int = self.data.get("min_untranslated_length", 5)
+
+        thresholds = self.data.get("expansion_thresholds", {})
+        short = thresholds.get("short", {})
+        medium = thresholds.get("medium", {})
+        long_thresh = thresholds.get("long", {})
+
+        self._short_max: int = short.get("max_length") or 15
+        self._medium_max: int = medium.get("max_length") or 50
+        self._short_mult: float = short.get("multiplier", 2.5)
+        self._medium_mult: float = medium.get("multiplier", 1.8)
+        self._long_mult: float = long_thresh.get("multiplier", 1.4)
 
     @classmethod
     def load_from_file(cls, filepath: str) -> "QAConfig":
@@ -52,26 +83,26 @@ class QAConfig:
         except (FileNotFoundError, json.JSONDecodeError):
             return cls()
 
-    def is_ignored(self, string_id: str, locale: Optional[str] = None, check_type: Optional[str] = None) -> bool:
-        # Check global ignore rules
-        global_rules = self.data.get("ignore_rules", {}).get("global", {})
-        global_ignored_ids = set(global_rules.get("ignored_ids", []))
-        global_ignored_checks = set(global_rules.get("ignored_checks", []))
-
-        if string_id in global_ignored_ids:
-            return True
-        if check_type and check_type in global_ignored_checks:
-            return True
-
-        # Check locale-specific rules
+    def get_active_ignores(self, locale: Optional[str] = None) -> Tuple[Set[str], Set[str]]:
+        """Return combined (ignored_ids, ignored_checks) sets for global + locale once per run."""
+        ignored_ids = set(self._global_ignored_ids)
+        ignored_checks = set(self._global_ignored_checks)
         if locale:
-            locale_rules = self.data.get("ignore_rules", {}).get("locales", {}).get(locale, {})
-            locale_ignored_ids = set(locale_rules.get("ignored_ids", []))
-            locale_ignored_checks = set(locale_rules.get("ignored_checks", []))
+            ignored_ids.update(self._locale_ignored_ids.get(locale, ()))
+            ignored_checks.update(self._locale_ignored_checks.get(locale, ()))
+        return ignored_ids, ignored_checks
 
-            if string_id in locale_ignored_ids:
+    def is_ignored(self, string_id: str, locale: Optional[str] = None, check_type: Optional[str] = None) -> bool:
+        """Fast lookup using pre-computed sets to avoid set allocations in hot loops."""
+        if string_id in self._global_ignored_ids:
+            return True
+        if check_type and check_type in self._global_ignored_checks:
+            return True
+
+        if locale:
+            if string_id in self._locale_ignored_ids.get(locale, ()):
                 return True
-            if check_type and check_type in locale_ignored_checks:
+            if check_type and check_type in self._locale_ignored_checks.get(locale, ()):
                 return True
 
         return False
@@ -79,23 +110,17 @@ class QAConfig:
     def get_placeholder_patterns(self) -> List[str]:
         return self.data.get("placeholder_patterns", [])
 
+    def get_compiled_placeholder_patterns(self) -> List[re.Pattern]:
+        """Return pre-compiled regex objects for placeholder extraction."""
+        return self._compiled_placeholder_patterns
+
     def get_min_untranslated_length(self) -> int:
-        return self.data.get("min_untranslated_length", 5)
+        return self._min_untranslated_length
 
     def get_expansion_multiplier(self, canonical_len: int) -> float:
-        thresholds = self.data.get("expansion_thresholds", {})
-
-        # Sort keys to evaluate systematically
-        short = thresholds.get("short", {})
-        medium = thresholds.get("medium", {})
-        long_thresh = thresholds.get("long", {})
-
-        short_max = short.get("max_length") or 15
-        medium_max = medium.get("max_length") or 50
-
-        if canonical_len <= short_max:
-            return short.get("multiplier", 2.5)
-        elif canonical_len <= medium_max:
-            return medium.get("multiplier", 1.8)
-        else:
-            return long_thresh.get("multiplier", 1.4)
+        """Fast O(1) conditional check using cached threshold bounds."""
+        if canonical_len <= self._short_max:
+            return self._short_mult
+        elif canonical_len <= self._medium_max:
+            return self._medium_mult
+        return self._long_mult
