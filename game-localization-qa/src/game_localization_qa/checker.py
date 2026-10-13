@@ -2,6 +2,10 @@ import re
 from typing import Dict, List, Set, Tuple, Optional, Any
 from .config import QAConfig
 
+# Pre-compiled module-scope regular expressions for HTML/XML tag scanning
+TAG_RE = re.compile(r'</?([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?>')
+TAG_TOKENS_RE = re.compile(r'<(/?)([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?(/?)>')
+
 class QAIssue:
     """Represents a localized QA finding/issue."""
     def __init__(self, string_id: str, check_type: str, message: str, canonical_val: Optional[str] = None, locale_val: Optional[str] = None):
@@ -27,23 +31,24 @@ class LocalizationChecker:
 
     def _extract_placeholders(self, text: str) -> List[str]:
         placeholders = []
-        for pattern in self.config.get_placeholder_patterns():
-            matches = re.findall(pattern, text)
+        for pattern in self.config.get_compiled_placeholder_patterns():
+            matches = pattern.findall(text)
             placeholders.extend(matches)
         return sorted(placeholders)
 
     def _extract_tags(self, text: str) -> List[str]:
-        # Simple HTML/XML tag finder
-        # Captures open and close tag names, like 'b' from <b> or '</b>'
-        tags = re.findall(r'</?([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?>', text)
-        return tags
+        # Fast path substring check before regex execution
+        if "<" not in text:
+            return []
+        return TAG_RE.findall(text)
 
     def _is_tag_imbalanced(self, text: str) -> bool:
-        # Check standard matching tags
-        # We can use a stack to verify balanced tags (e.g. <b>...</b>)
-        # We find all complete tags in the string in order of appearance
-        # For simplicity, we ignore self-closing tags like <br/> or <img/>
-        tag_tokens = re.findall(r'<(/?)([a-zA-Z0-9_\-]+)(?:\s+[^>]*?)?(/?)>', text)
+        # Fast path substring check before regex execution
+        if "<" not in text:
+            return False
+
+        # Find all complete tags in the string in order of appearance
+        tag_tokens = TAG_TOKENS_RE.findall(text)
         stack = []
         for close_slash, tag_name, self_close_slash in tag_tokens:
             if self_close_slash == '/': # self-closing tag
@@ -62,39 +67,52 @@ class LocalizationChecker:
         canonical_ids = set(canonical.keys())
         locale_ids = set(locale.keys())
 
+        # Resolve active ignored IDs and active checks once per locale batch
+        ignored_ids, ignored_checks = self.config.get_active_ignores(locale_name)
+
         # 1. Check Missing and Extra Keys
         missing_keys = canonical_ids - locale_ids
         extra_keys = locale_ids - canonical_ids
 
-        for k in sorted(missing_keys):
-            if not self.config.is_ignored(k, locale_name, "missing_key"):
-                issues.append(QAIssue(
-                    string_id=k,
-                    check_type="missing_key",
-                    message="String ID is present in canonical but missing in locale catalog.",
-                    canonical_val=canonical[k]
-                ))
+        if "missing_key" not in ignored_checks:
+            for k in sorted(missing_keys):
+                if k not in ignored_ids:
+                    issues.append(QAIssue(
+                        string_id=k,
+                        check_type="missing_key",
+                        message="String ID is present in canonical but missing in locale catalog.",
+                        canonical_val=canonical[k]
+                    ))
 
-        for k in sorted(extra_keys):
-            if not self.config.is_ignored(k, locale_name, "extra_key"):
-                issues.append(QAIssue(
-                    string_id=k,
-                    check_type="extra_key",
-                    message="String ID is present in locale but missing in canonical catalog.",
-                    locale_val=locale[k]
-                ))
+        if "extra_key" not in ignored_checks:
+            for k in sorted(extra_keys):
+                if k not in ignored_ids:
+                    issues.append(QAIssue(
+                        string_id=k,
+                        check_type="extra_key",
+                        message="String ID is present in locale but missing in canonical catalog.",
+                        locale_val=locale[k]
+                    ))
 
-        # Check for duplicate IDs: since we parsed into Dict, native Python dict resolves keys uniquely.
-        # But wait! If the user inputs files that have duplicates, the CLI/adapters can track duplicates.
-        # Let's support checking matching keys for translation defects
         common_keys = canonical_ids & locale_ids
 
+        check_placeholders = "placeholder_drift" not in ignored_checks
+        check_tags = "tag_imbalance" not in ignored_checks
+        check_line_breaks = "line_break_drift" not in ignored_checks
+        check_untranslated = "untranslated" not in ignored_checks
+        check_expansion = "text_expansion" not in ignored_checks
+
+        min_len = self.config.get_min_untranslated_length()
+
         for k in sorted(common_keys):
+            if k in ignored_ids:
+                continue
+
             canon_val = canonical[k]
             loc_val = locale[k]
 
             # --- Check: Placeholder/Token Drift ---
-            if not self.config.is_ignored(k, locale_name, "placeholder_drift"):
+            if check_placeholders:
                 canon_placeholders = self._extract_placeholders(canon_val)
                 loc_placeholders = self._extract_placeholders(loc_val)
                 if canon_placeholders != loc_placeholders:
@@ -107,7 +125,7 @@ class LocalizationChecker:
                     ))
 
             # --- Check: Tag Imbalance / Mismatch ---
-            if not self.config.is_ignored(k, locale_name, "tag_imbalance"):
+            if check_tags:
                 # Detect imbalances inside the locale string itself
                 if self._is_tag_imbalanced(loc_val):
                     issues.append(QAIssue(
@@ -131,7 +149,7 @@ class LocalizationChecker:
                         ))
 
             # --- Check: Line-break Constraints ---
-            if not self.config.is_ignored(k, locale_name, "line_break_drift"):
+            if check_line_breaks:
                 # We check two things: literal '\\n' sequences and raw '\n' newlines
                 canon_literal_newlines = canon_val.count("\\n")
                 loc_literal_newlines = loc_val.count("\\n")
@@ -148,8 +166,7 @@ class LocalizationChecker:
                     ))
 
             # --- Check: Untranslated String ---
-            if not self.config.is_ignored(k, locale_name, "untranslated"):
-                min_len = self.config.get_min_untranslated_length()
+            if check_untranslated:
                 # Skip if empty or digit-only or shorter than min length
                 is_digit = loc_val.strip().isdigit()
                 if loc_val == canon_val and len(loc_val.strip()) >= min_len and not is_digit:
@@ -162,7 +179,7 @@ class LocalizationChecker:
                     ))
 
             # --- Check: Text Expansion ---
-            if not self.config.is_ignored(k, locale_name, "text_expansion"):
+            if check_expansion:
                 canon_len = len(canon_val)
                 loc_len = len(loc_val)
                 if canon_len > 0:
