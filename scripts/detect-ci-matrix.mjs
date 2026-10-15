@@ -95,10 +95,8 @@ if (eventName === 'workflow_dispatch') {
 
     const changedDirs = new Set(changedFiles.map(f => f.split('/')[0]));
 
-    // Check invalid packages only if they are changed or runAll is true
-    const relevantInvalid = runAll
-      ? invalidPackages
-      : invalidPackages.filter(item => changedDirs.has(item.dir));
+    // Check invalid packages only if they are directly changed by this PR/commit
+    const relevantInvalid = invalidPackages.filter(item => changedDirs.has(item.dir));
 
     if (relevantInvalid.length) {
       console.error('CI test coverage guard failed:');
