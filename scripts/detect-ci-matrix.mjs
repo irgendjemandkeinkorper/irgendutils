@@ -33,9 +33,9 @@ for (const entry of entries) {
         const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
         const testScript = pkgJson.scripts?.test;
         if (!testScript || testScript.includes('Add tests here')) {
-          invalidPackages.push(`${entry.name}: missing or placeholder test script`);
+          invalidPackages.push({ dir: entry.name, issue: `${entry.name}: missing or placeholder test script` });
         } else if (!containsNodeTests(entry.name)) {
-          invalidPackages.push(`${entry.name}: no Node test files under test/ or tests/`);
+          invalidPackages.push({ dir: entry.name, issue: `${entry.name}: no Node test files under test/ or tests/` });
         } else {
           allPackages.push({
             name: entry.name,
@@ -54,12 +54,6 @@ for (const entry of entries) {
       });
     }
   }
-}
-
-if (invalidPackages.length) {
-  console.error('CI test coverage guard failed:');
-  for (const issue of invalidPackages) console.error(`- ${issue}`);
-  process.exit(1);
 }
 
 let changedPackages = [];
@@ -99,15 +93,32 @@ if (eventName === 'workflow_dispatch') {
       f.startsWith('scripts/')
     );
 
+    const changedDirs = new Set(changedFiles.map(f => f.split('/')[0]));
+
+    // Check invalid packages only if they are changed or runAll is true
+    const relevantInvalid = runAll
+      ? invalidPackages
+      : invalidPackages.filter(item => changedDirs.has(item.dir));
+
+    if (relevantInvalid.length) {
+      console.error('CI test coverage guard failed:');
+      for (const item of relevantInvalid) console.error(`- ${item.issue}`);
+      process.exit(1);
+    }
+
     if (runAll) {
       console.log('Global configuration or workflow files changed. Running all tests.');
       changedPackages = allPackages;
     } else {
-      const changedDirs = new Set(changedFiles.map(f => f.split('/')[0]));
       changedPackages = allPackages.filter(p => changedDirs.has(p.dir));
     }
   } catch (err) {
     console.error('Error determining changed files, falling back to all packages:', err);
+    if (invalidPackages.length) {
+      console.error('CI test coverage guard failed:');
+      for (const item of invalidPackages) console.error(`- ${item.issue}`);
+      process.exit(1);
+    }
     changedPackages = allPackages;
   }
 }
