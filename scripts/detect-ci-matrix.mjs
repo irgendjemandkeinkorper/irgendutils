@@ -59,6 +59,7 @@ for (const entry of entries) {
 let changedPackages = [];
 let runAll = false;
 let changedDirs = new Set();
+let gitDiffFailed = false;
 
 if (eventName === 'workflow_dispatch') {
   console.log('Event is workflow_dispatch, including all implemented packages.');
@@ -89,6 +90,8 @@ if (eventName === 'workflow_dispatch') {
     const changedFiles = diffOutput.split('\n').map(f => f.trim()).filter(Boolean);
     console.log('Changed files:', changedFiles);
 
+    changedDirs = new Set(changedFiles.map(f => f.split('/')[0]));
+
     // If any global/common configurations or workflows changed, run all tests
     runAll = changedFiles.some(f =>
       f.startsWith('.github/') ||
@@ -100,18 +103,19 @@ if (eventName === 'workflow_dispatch') {
       console.log('Global configuration or workflow files changed. Running all tests.');
       changedPackages = allPackages;
     } else {
-      changedDirs = new Set(changedFiles.map(f => f.split('/')[0]));
       changedPackages = allPackages.filter(p => changedDirs.has(p.dir));
     }
   } catch (err) {
     console.error('Error determining changed files, falling back to all packages:', err);
     runAll = true;
+    gitDiffFailed = true;
     changedPackages = allPackages;
   }
 }
 
-// Only fail coverage check for packages that were modified in this run
-const relevantInvalid = runAll
+// Only fail coverage check for packages that were modified in this PR/commit.
+// For workflow_dispatch or git diff failure, check all invalidPackages.
+const relevantInvalid = (eventName === 'workflow_dispatch' || gitDiffFailed)
   ? invalidPackages
   : invalidPackages.filter(p => changedDirs.has(p.dir));
 
