@@ -263,31 +263,29 @@ export function runAnalysis(pages, config, options = {}) {
     throw new Error(`Invalid current date override: "${options.currentDate}"`);
   }
 
-  // 1. Exclude any pages that are configured to be excluded
-  const activePages = [];
+  // 1. Exclude any pages that are configured to be excluded and resolve rules once
+  const pageResults = [];
+  const pageRulesMap = new Map();
+
   for (const page of pages) {
     const rules = resolveRulesForPath(config, page.url);
     if (!rules.exclude) {
-      activePages.push({
-        ...page,
-        rules, // Keep resolved rules for references
-      });
+      const pResult = {
+        url: page.url,
+        relativePath: getRelativePath(page.url),
+        title: page.title,
+        metaDesc: page.metaDesc,
+        date: page.date,
+        wordCount: calculateWordCount(page.content),
+        headings: page.headings,
+        links: page.links,
+        findings: [],
+        priorityScore: 0,
+      };
+      pageResults.push(pResult);
+      pageRulesMap.set(pResult, rules);
     }
   }
-
-  // Prep the analysis results per page
-  const pageResults = activePages.map((page) => ({
-    url: page.url,
-    relativePath: getRelativePath(page.url),
-    title: page.title,
-    metaDesc: page.metaDesc,
-    date: page.date,
-    wordCount: calculateWordCount(page.content),
-    headings: page.headings,
-    links: page.links,
-    findings: [],
-    priorityScore: 0,
-  }));
 
   // Map of normalized relative paths to indices for easy lookup
   const pathMap = new Map();
@@ -297,7 +295,7 @@ export function runAnalysis(pages, config, options = {}) {
 
   // 2. Freshness & Thin Content checks
   for (const p of pageResults) {
-    const rules = resolveRulesForPath(config, p.url);
+    const rules = pageRulesMap.get(p);
 
     // Freshness check
     if (!p.date) {
@@ -414,7 +412,7 @@ export function runAnalysis(pages, config, options = {}) {
 
     // If no inbound links, check if it's a configured entry page
     if (inLinks.size === 0) {
-      const rules = resolveRulesForPath(config, p.url);
+      const rules = pageRulesMap.get(p);
       const entryPagesNormalized = (rules.entry_pages || []).map(getRelativePath);
 
       if (!entryPagesNormalized.includes(p.relativePath)) {

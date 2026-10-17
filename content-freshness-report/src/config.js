@@ -15,21 +15,36 @@ export const DEFAULTS = {
  */
 export function getRelativePath(url) {
   if (!url) return '/';
-  try {
-    const parsed = new URL(url, 'https://example.local');
-    let path = parsed.pathname;
-    if (parsed.search) {
-      path += parsed.search;
+  if (typeof url !== 'string') url = String(url);
+
+  let path = url;
+  if (!path.startsWith('/')) {
+    const schemeIndex = path.indexOf('://');
+    if (schemeIndex !== -1) {
+      const pathIndex = path.indexOf('/', schemeIndex + 3);
+      if (pathIndex !== -1) {
+        path = path.slice(pathIndex);
+      } else {
+        path = '/';
+      }
+    } else {
+      try {
+        const parsed = new URL(path, 'https://example.local');
+        path = parsed.pathname + parsed.search;
+        return path;
+      } catch (e) {
+        path = path.replace(/^(https?:\/\/[^/]+)/i, '');
+        if (!path.startsWith('/')) path = '/' + path;
+      }
     }
-    return path;
-  } catch (e) {
-    // If not a valid absolute/relative URL, strip domain or leading parts manually
-    let path = String(url).replace(/^(https?:\/\/[^/]+)/i, '');
-    if (!path.startsWith('/')) {
-      path = '/' + path;
-    }
-    return path;
   }
+
+  // Strip hash fragment if present (matching new URL behavior with pathname + search)
+  const hashIndex = path.indexOf('#');
+  if (hashIndex !== -1) {
+    path = path.slice(0, hashIndex);
+  }
+  return path || '/';
 }
 
 /**
@@ -53,24 +68,27 @@ export function resolveRulesForPath(config, url) {
   // Find any matching custom rules. Rules later in the list override earlier ones.
   for (const rule of config.rules) {
     if (!rule || !rule.path) continue;
-    try {
-      const regex = new RegExp(rule.path);
-      if (regex.test(relPath)) {
-        if (rule.exclude !== undefined) {
-          resolved.exclude = !!rule.exclude;
-        }
-        if (rule.freshness_threshold_days !== undefined) {
-          resolved.freshness_threshold_days = Number(rule.freshness_threshold_days);
-        }
-        if (rule.thin_content_threshold !== undefined) {
-          resolved.thin_content_threshold = Number(rule.thin_content_threshold);
-        }
-        if (rule.entry_pages !== undefined) {
-          resolved.entry_pages = Array.isArray(rule.entry_pages) ? rule.entry_pages : [rule.entry_pages];
-        }
+    // Cache compiled RegExp instance on the rule object to avoid repeated instantiations
+    if (!rule._regex) {
+      try {
+        rule._regex = new RegExp(rule.path);
+      } catch (err) {
+        rule._regex = null;
       }
-    } catch (err) {
-      // Ignore invalid regex patterns or log internally
+    }
+    if (rule._regex && rule._regex.test(relPath)) {
+      if (rule.exclude !== undefined) {
+        resolved.exclude = !!rule.exclude;
+      }
+      if (rule.freshness_threshold_days !== undefined) {
+        resolved.freshness_threshold_days = Number(rule.freshness_threshold_days);
+      }
+      if (rule.thin_content_threshold !== undefined) {
+        resolved.thin_content_threshold = Number(rule.thin_content_threshold);
+      }
+      if (rule.entry_pages !== undefined) {
+        resolved.entry_pages = Array.isArray(rule.entry_pages) ? rule.entry_pages : [rule.entry_pages];
+      }
     }
   }
 
