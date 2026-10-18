@@ -63,21 +63,22 @@ def load_snapshot(filepath: str) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, A
 def get_ancestors(path: str) -> List[str]:
     """Returns a list of directory ancestors for a given path.
     e.g., 'a/b/c.txt' -> ['.', 'a', 'a/b']
+
+    Performance optimization: Fast single-pass string index finding eliminates
+    costly str.split('/'), string formatting, and dict key deduplication overhead.
     """
     if path == "." or not path:
         return []
     ancestors = ["."]
-    parts = path.split("/")
-    current = ""
-    for part in parts[:-1]:
-        if not part:
-            continue
-        if current:
-            current = f"{current}/{part}"
-        else:
-            current = part
-        ancestors.append(current)
-    return list(dict.fromkeys(ancestors))
+    pos = 0
+    while True:
+        pos = path.find("/", pos)
+        if pos == -1:
+            break
+        if pos > 0:
+            ancestors.append(path[:pos])
+        pos += 1
+    return ancestors
 
 
 def compute_cumulative_sizes(entries: Dict[str, Dict[str, Any]]) -> Dict[str, int]:
@@ -93,13 +94,25 @@ def compute_cumulative_sizes(entries: Dict[str, Dict[str, Any]]) -> Dict[str, in
     cumulative["."] = 0
 
     # Add non-directory file/symlink/other sizes to their ancestors
+    # Performance optimization: Inlining ancestor traversal avoids function call
+    # overhead for millions of file entries in large snapshots.
     for path, entry in entries.items():
         if "error" in entry:
             continue
         if entry.get("type") != "dir":
             size = entry.get("size", 0)
-            for ancestor in get_ancestors(path):
-                cumulative[ancestor] = cumulative.get(ancestor, 0) + size
+            if not path or path == ".":
+                continue
+            cumulative["."] = cumulative.get(".", 0) + size
+            pos = 0
+            while True:
+                pos = path.find("/", pos)
+                if pos == -1:
+                    break
+                if pos > 0:
+                    anc = path[:pos]
+                    cumulative[anc] = cumulative.get(anc, 0) + size
+                pos += 1
 
     return cumulative
 
