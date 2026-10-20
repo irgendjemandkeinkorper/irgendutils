@@ -23,50 +23,12 @@ function containsNodeTests(dir) {
   });
 }
 
-// Discover all packages in the repo
-const entries = fs.readdirSync('.', { withFileTypes: true });
-for (const entry of entries) {
-  if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules' && entry.name !== 'bash_scripts' && entry.name !== 'vault') {
-    const pkgJsonPath = path.join(entry.name, 'package.json');
-    if (fs.existsSync(pkgJsonPath)) {
-      try {
-        const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
-        const testScript = pkgJson.scripts?.test;
-        if (!testScript || testScript.includes('Add tests here')) {
-          invalidPackages.push(`${entry.name}: missing or placeholder test script`);
-        } else if (!containsNodeTests(entry.name)) {
-          invalidPackages.push(`${entry.name}: no Node test files under test/ or tests/`);
-        } else {
-          allPackages.push({
-            name: entry.name,
-            dir: entry.name,
-            language: 'node',
-          });
-        }
-      } catch (err) {
-        console.error(`Error reading ${pkgJsonPath}:`, err);
-      }
-    } else if (containsPythonTests(entry.name)) {
-      allPackages.push({
-        name: entry.name,
-        dir: entry.name,
-        language: 'python',
-      });
-    }
-  }
-}
-
-if (invalidPackages.length) {
-  console.error('CI test coverage guard failed:');
-  for (const issue of invalidPackages) console.error(`- ${issue}`);
-  process.exit(1);
-}
-
-let changedPackages = [];
+let changedFiles = [];
+let runAll = false;
 
 if (eventName === 'workflow_dispatch') {
   console.log('Event is workflow_dispatch, including all implemented packages.');
-  changedPackages = allPackages;
+  runAll = true;
 } else {
   try {
     let gitDiffCmd = 'git diff --name-only HEAD~1';
@@ -89,27 +51,73 @@ if (eventName === 'workflow_dispatch') {
 
     console.log(`Running: ${gitDiffCmd}`);
     const diffOutput = execSync(gitDiffCmd, { encoding: 'utf8' });
-    const changedFiles = diffOutput.split('\n').map(f => f.trim()).filter(Boolean);
+    changedFiles = diffOutput.split('\n').map(f => f.trim()).filter(Boolean);
     console.log('Changed files:', changedFiles);
 
     // If any global/common configurations or workflows changed, run all tests
-    const runAll = changedFiles.some(f =>
+    runAll = changedFiles.some(f =>
       f.startsWith('.github/') ||
       f === 'package.json' ||
       f.startsWith('scripts/')
     );
-
-    if (runAll) {
-      console.log('Global configuration or workflow files changed. Running all tests.');
-      changedPackages = allPackages;
-    } else {
-      const changedDirs = new Set(changedFiles.map(f => f.split('/')[0]));
-      changedPackages = allPackages.filter(p => changedDirs.has(p.dir));
-    }
   } catch (err) {
     console.error('Error determining changed files, falling back to all packages:', err);
-    changedPackages = allPackages;
+    runAll = true;
   }
+}
+
+const changedDirs = new Set(changedFiles.map(f => f.split('/')[0]));
+
+// Discover all packages in the repo
+const entries = fs.readdirSync('.', { withFileTypes: true });
+for (const entry of entries) {
+  if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules' && entry.name !== 'bash_scripts' && entry.name !== 'vault') {
+    const pkgJsonPath = path.join(entry.name, 'package.json');
+    if (fs.existsSync(pkgJsonPath)) {
+      try {
+        const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+        const testScript = pkgJson.scripts?.test;
+        if (!testScript || testScript.includes('Add tests here')) {
+          invalidPackages.push({ dir: entry.name, issue: `${entry.name}: missing or placeholder test script` });
+        } else if (!containsNodeTests(entry.name)) {
+          invalidPackages.push({ dir: entry.name, issue: `${entry.name}: no Node test files under test/ or tests/` });
+        } else {
+          allPackages.push({
+            name: entry.name,
+            dir: entry.name,
+            language: 'node',
+          });
+        }
+      } catch (err) {
+        console.error(`Error reading ${pkgJsonPath}:`, err);
+      }
+    } else if (containsPythonTests(entry.name)) {
+      allPackages.push({
+        name: entry.name,
+        dir: entry.name,
+        language: 'python',
+      });
+    }
+  }
+}
+
+// Filter invalid packages against modified package directories
+const relevantInvalidPackages = eventName === 'workflow_dispatch'
+  ? invalidPackages
+  : invalidPackages.filter(p => changedDirs.has(p.dir));
+
+if (relevantInvalidPackages.length) {
+  console.error('CI test coverage guard failed:');
+  for (const item of relevantInvalidPackages) console.error(`- ${item.issue}`);
+  process.exit(1);
+}
+
+let changedPackages = [];
+if (runAll) {
+  console.log('Global configuration or workflow files changed. Running all tests.');
+  changedPackages = allPackages;
+} else {
+  changedPackages = allPackages.filter(p => changedDirs.has(p.dir));
 }
 
 console.log('Target packages for test execution:', changedPackages.map(p => p.dir));
