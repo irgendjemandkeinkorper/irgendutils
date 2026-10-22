@@ -283,26 +283,25 @@ class ComparisonRunner:
                             mapped_after_urls.add(dest)
 
         # Fallback path-matching for unmapped before URLs
-        unmapped_before = [u for u in flat_before.keys() if u not in mapped_before_urls]
-        unmapped_after = [u for u in flat_after.keys() if u not in mapped_after_urls]
-
         if self.fallback_path_match:
             # Index unmapped after URLs by their normalized path
             after_path_to_url: Dict[str, str] = {}
-            for u in unmapped_after:
-                norm_p = normalize_url(u)
-                if norm_p and norm_p not in after_path_to_url:
-                    after_path_to_url[norm_p] = u
+            for u in flat_after:
+                if u not in mapped_after_urls:
+                    norm_p = normalize_url(u)
+                    if norm_p and norm_p not in after_path_to_url:
+                        after_path_to_url[norm_p] = u
 
-            for src in unmapped_before:
-                norm_src = normalize_url(src)
-                if norm_src in after_path_to_url:
-                    dest = after_path_to_url[norm_src]
-                    compare_pairs.append((src, dest))
-                    mapped_before_urls.add(src)
-                    mapped_after_urls.add(dest)
-                    # Remove from unmapped tracking for missing mappings
-                    unmapped_after.remove(dest)
+            for src in flat_before:
+                if src not in mapped_before_urls:
+                    norm_src = normalize_url(src)
+                    if norm_src in after_path_to_url:
+                        # Performance optimization: Use O(1) dictionary pop instead of
+                        # O(N) list remove on unmapped_after to prevent O(N^2) quadratic scaling.
+                        dest = after_path_to_url.pop(norm_src)
+                        compare_pairs.append((src, dest))
+                        mapped_before_urls.add(src)
+                        mapped_after_urls.add(dest)
 
         # 3. Report missing mappings for remaining unmapped URLs
         # Remaining unmapped before URLs
