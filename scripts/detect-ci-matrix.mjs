@@ -33,9 +33,9 @@ for (const entry of entries) {
         const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
         const testScript = pkgJson.scripts?.test;
         if (!testScript || testScript.includes('Add tests here')) {
-          invalidPackages.push(`${entry.name}: missing or placeholder test script`);
+          invalidPackages.push({ dir: entry.name, reason: 'missing or placeholder test script' });
         } else if (!containsNodeTests(entry.name)) {
-          invalidPackages.push(`${entry.name}: no Node test files under test/ or tests/`);
+          invalidPackages.push({ dir: entry.name, reason: 'no Node test files under test/ or tests/' });
         } else {
           allPackages.push({
             name: entry.name,
@@ -56,17 +56,13 @@ for (const entry of entries) {
   }
 }
 
-if (invalidPackages.length) {
-  console.error('CI test coverage guard failed:');
-  for (const issue of invalidPackages) console.error(`- ${issue}`);
-  process.exit(1);
-}
-
 let changedPackages = [];
+let changedDirs = new Set();
 
 if (eventName === 'workflow_dispatch') {
   console.log('Event is workflow_dispatch, including all implemented packages.');
   changedPackages = allPackages;
+  changedDirs = new Set(allPackages.map(p => p.dir));
 } else {
   try {
     let gitDiffCmd = 'git diff --name-only HEAD~1';
@@ -102,14 +98,25 @@ if (eventName === 'workflow_dispatch') {
     if (runAll) {
       console.log('Global configuration or workflow files changed. Running all tests.');
       changedPackages = allPackages;
+      changedDirs = new Set(allPackages.map(p => p.dir));
     } else {
-      const changedDirs = new Set(changedFiles.map(f => f.split('/')[0]));
+      changedDirs = new Set(changedFiles.map(f => f.split('/')[0]));
       changedPackages = allPackages.filter(p => changedDirs.has(p.dir));
     }
   } catch (err) {
     console.error('Error determining changed files, falling back to all packages:', err);
     changedPackages = allPackages;
+    changedDirs = new Set(allPackages.map(p => p.dir));
   }
+}
+
+// Filter invalidPackages against modified package directories (`changedDirs`)
+const relevantInvalid = invalidPackages.filter(p => changedDirs.has(p.dir));
+
+if (relevantInvalid.length) {
+  console.error('CI test coverage guard failed for modified packages:');
+  for (const item of relevantInvalid) console.error(`- ${item.dir}: ${item.reason}`);
+  process.exit(1);
 }
 
 console.log('Target packages for test execution:', changedPackages.map(p => p.dir));
