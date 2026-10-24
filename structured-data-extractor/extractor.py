@@ -50,6 +50,12 @@ class JSONLDParser(HTMLParser):
             self.current_block.append(data)
 
 
+# Performance optimization: Pre-compile CDATA wrapper regexes at module scope.
+CDATA_OPEN_RE = re.compile(r'(?://|/\*)\s*<!\[CDATA\[\s*(?:\*/)?', re.IGNORECASE)
+CDATA_CLOSE_RE = re.compile(r'(?://|/\*)\s*\]\]>\s*(?:\*/)?', re.IGNORECASE)
+CDATA_RAW_RE = re.compile(r'<!\[CDATA\[|\]\]>', re.IGNORECASE)
+
+
 def clean_json_ld_text(text: str) -> str:
     """
     Clean up JS comments, HTML comments, and CDATA wrappers around JSON-LD content.
@@ -60,11 +66,12 @@ def clean_json_ld_text(text: str) -> str:
     if text.startswith("<!--") and text.endswith("-->"):
         text = text[4:-3].strip()
 
-    # Strip CDATA wrappers
-    # Matches patterns like //<![CDATA[ or /* <![CDATA[ */ or // ]]> or /* ]]> */
-    text = re.sub(r'(?://|/\*)\s*<!\[CDATA\[\s*(?:\*/)?', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'(?://|/\*)\s*\]\]>\s*(?:\*/)?', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'<!\[CDATA\[|\]\]>', '', text, flags=re.IGNORECASE)
+    # Performance optimization: Fast-path substring check (zero string allocation) to bypass
+    # regex sub overhead for the vast majority of JSON-LD scripts without CDATA wrappers.
+    if "<!" in text or "]]" in text:
+        text = CDATA_OPEN_RE.sub('', text)
+        text = CDATA_CLOSE_RE.sub('', text)
+        text = CDATA_RAW_RE.sub('', text)
 
     return text.strip()
 
@@ -101,18 +108,25 @@ def check_old_domains(val: Any, old_domains: List[str]) -> bool:
     if not old_domains:
         return False
 
+    # Performance optimization: Pre-lowercase domain search strings once at entry
+    # to avoid repeating domain string lowercasing inside the recursive tree traversal.
+    old_domains_lower = [d.lower() for d in old_domains]
+    return _check_old_domains_lower(val, old_domains_lower)
+
+
+def _check_old_domains_lower(val: Any, old_domains_lower: List[str]) -> bool:
     if isinstance(val, str):
         val_lower = val.lower()
-        for domain in old_domains:
-            if domain.lower() in val_lower:
+        for domain in old_domains_lower:
+            if domain in val_lower:
                 return True
     elif isinstance(val, list):
         for item in val:
-            if check_old_domains(item, old_domains):
+            if _check_old_domains_lower(item, old_domains_lower):
                 return True
     elif isinstance(val, dict):
         for k, v in val.items():
-            if check_old_domains(k, old_domains) or check_old_domains(v, old_domains):
+            if _check_old_domains_lower(k, old_domains_lower) or _check_old_domains_lower(v, old_domains_lower):
                 return True
     return False
 
