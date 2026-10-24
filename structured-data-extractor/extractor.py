@@ -50,6 +50,12 @@ class JSONLDParser(HTMLParser):
             self.current_block.append(data)
 
 
+# Performance optimization: Pre-compile CDATA wrapper regexes at module scope.
+CDATA_OPEN_RE = re.compile(r'(?://|/\*)\s*<!\[CDATA\[\s*(?:\*/)?', re.IGNORECASE)
+CDATA_CLOSE_RE = re.compile(r'(?://|/\*)\s*\]\]>\s*(?:\*/)?', re.IGNORECASE)
+CDATA_RAW_RE = re.compile(r'<!\[CDATA\[|\]\]>', re.IGNORECASE)
+
+
 def clean_json_ld_text(text: str) -> str:
     """
     Clean up JS comments, HTML comments, and CDATA wrappers around JSON-LD content.
@@ -60,11 +66,12 @@ def clean_json_ld_text(text: str) -> str:
     if text.startswith("<!--") and text.endswith("-->"):
         text = text[4:-3].strip()
 
-    # Strip CDATA wrappers
-    # Matches patterns like //<![CDATA[ or /* <![CDATA[ */ or // ]]> or /* ]]> */
-    text = re.sub(r'(?://|/\*)\s*<!\[CDATA\[\s*(?:\*/)?', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'(?://|/\*)\s*\]\]>\s*(?:\*/)?', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'<!\[CDATA\[|\]\]>', '', text, flags=re.IGNORECASE)
+    # Performance optimization: Fast-path substring check to bypass regex sub overhead
+    # for the vast majority of JSON-LD scripts without CDATA wrappers.
+    if "cdata" in text.lower() or "<!" in text or "]]" in text:
+        text = CDATA_OPEN_RE.sub('', text)
+        text = CDATA_CLOSE_RE.sub('', text)
+        text = CDATA_RAW_RE.sub('', text)
 
     return text.strip()
 
@@ -97,6 +104,7 @@ def is_node(val: Any) -> bool:
 def check_old_domains(val: Any, old_domains: List[str]) -> bool:
     """
     Recursively scans JSON value to check if any string contains any of the specified old domains.
+    Expects old_domains to contain lowercased string entries.
     """
     if not old_domains:
         return False
@@ -104,7 +112,7 @@ def check_old_domains(val: Any, old_domains: List[str]) -> bool:
     if isinstance(val, str):
         val_lower = val.lower()
         for domain in old_domains:
-            if domain.lower() in val_lower:
+            if domain in val_lower:
                 return True
     elif isinstance(val, list):
         for item in val:
@@ -232,6 +240,8 @@ def parse_html_file(
     """
     if old_domains is None:
         old_domains = []
+    # Performance optimization: Pre-lowercase domain search strings once per file parse
+    old_domains_lower = [d.lower() for d in old_domains]
 
     prov_url = url or ""
     prov_file = filepath
@@ -287,7 +297,7 @@ def parse_html_file(
             continue
 
         # Extract structured data recursively from parsed JSON
-        extract_from_value(parsed_json, None, page_state, idx, old_domains)
+        extract_from_value(parsed_json, None, page_state, idx, old_domains_lower)
 
     # Convert nodes into output format and clean internal fields
     cleaned_nodes = []
@@ -445,6 +455,7 @@ def main() -> int:
     args = parser.parse_args()
 
     old_domains = args.old_domain or []
+    old_domains_lower = [d.lower() for d in old_domains]
     results = []
 
     # Identify HTML file inputs
@@ -452,7 +463,7 @@ def main() -> int:
         if not os.path.isfile(args.file):
             print(f"Error: Specified file does not exist: {args.file}", file=sys.stderr)
             return 1
-        results.append(parse_html_file(args.file, args.url, old_domains))
+        results.append(parse_html_file(args.file, args.url, old_domains_lower))
 
     elif args.dir:
         if not os.path.isdir(args.dir):
@@ -463,7 +474,7 @@ def main() -> int:
             for file in files:
                 if file.lower().endswith((".html", ".htm")):
                     full_path = os.path.join(root, file)
-                    results.append(parse_html_file(full_path, None, old_domains))
+                    results.append(parse_html_file(full_path, None, old_domains_lower))
 
     elif args.manifest:
         if not os.path.isfile(args.manifest):
@@ -479,7 +490,7 @@ def main() -> int:
             if not os.path.isfile(entry["file"]):
                 print(f"Warning: Manifest file target not found, skipping: {entry['file']}", file=sys.stderr)
                 continue
-            results.append(parse_html_file(entry["file"], entry["url"], old_domains))
+            results.append(parse_html_file(entry["file"], entry["url"], old_domains_lower))
 
     # Output Summary
     total_pages = len(results)
