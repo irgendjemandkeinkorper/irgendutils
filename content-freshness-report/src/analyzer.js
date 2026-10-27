@@ -194,15 +194,32 @@ function normalizeText(text) {
   return String(text || '').trim().toLowerCase();
 }
 
+// Module-scoped pre-compiled regexes to avoid re-compilation overhead in hot loops
+const TAG_RE = /<[^>]*>/g;
+const H1_RE = /^h1\b/i;
+const H_LEVEL_RE = /^h([1-6])\b/i;
+
 /**
- * Clean HTML tags and count words
+ * Clean HTML tags and count words via a high-performance single-pass character scanner
  */
 export function calculateWordCount(content) {
   if (!content) return 0;
-  // Strip HTML tags if any
-  const cleanText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!cleanText) return 0;
-  return cleanText.split(/\s+/).length;
+  // Strip HTML tags once, then count words using single-pass index scanning
+  const clean = content.replace(TAG_RE, ' ');
+  let count = 0;
+  let inWord = false;
+  for (let j = 0; j < clean.length; j++) {
+    const code = clean.charCodeAt(j);
+    if (code > 32 && code !== 160) {
+      if (!inWord) {
+        inWord = true;
+        count++;
+      }
+    } else {
+      inWord = false;
+    }
+  }
+  return count;
 }
 
 /**
@@ -219,30 +236,21 @@ export function checkHeadingStructure(headings) {
     return findings;
   }
 
-  // Find H1s
-  // Expected headings format: "H1: Main Title" or "H2: Section" etc.
-  const h1s = headings.filter((h) => /^h1\b/i.test(String(h).trim()));
-
-  if (h1s.length === 0) {
-    findings.push({
-      ...FINDING_TYPES.MISSING_H1,
-      message: 'Page is missing an H1 heading.',
-    });
-  } else if (h1s.length > 1) {
-    findings.push({
-      ...FINDING_TYPES.MULTIPLE_H1,
-      message: `Page has multiple H1 headings (${h1s.length} found).`,
-    });
-  }
-
-  // Non-sequential hierarchy check
+  let h1Count = 0;
   let lastLevel = 0;
+  const hierarchyFindings = [];
+
   for (const heading of headings) {
-    const match = String(heading).trim().match(/^h([1-6])\b/i);
+    const trimmed = String(heading).trim();
+    if (H1_RE.test(trimmed)) {
+      h1Count++;
+    }
+
+    const match = trimmed.match(H_LEVEL_RE);
     if (match) {
       const level = parseInt(match[1], 10);
       if (lastLevel > 0 && level > lastLevel + 1) {
-        findings.push({
+        hierarchyFindings.push({
           ...FINDING_TYPES.NON_SEQUENTIAL_HEADINGS,
           message: `Heading hierarchy skipped from H${lastLevel} to H${level} ("${heading}").`,
         });
@@ -251,6 +259,19 @@ export function checkHeadingStructure(headings) {
     }
   }
 
+  if (h1Count === 0) {
+    findings.push({
+      ...FINDING_TYPES.MISSING_H1,
+      message: 'Page is missing an H1 heading.',
+    });
+  } else if (h1Count > 1) {
+    findings.push({
+      ...FINDING_TYPES.MULTIPLE_H1,
+      message: `Page has multiple H1 headings (${h1Count} found).`,
+    });
+  }
+
+  findings.push(...hierarchyFindings);
   return findings;
 }
 
@@ -265,13 +286,13 @@ export function runAnalysis(pages, config, options = {}) {
 
   // 1. Exclude any pages that are configured to be excluded
   const activePages = [];
+  const pageRulesMap = new Map();
+
   for (const page of pages) {
     const rules = resolveRulesForPath(config, page.url);
     if (!rules.exclude) {
-      activePages.push({
-        ...page,
-        rules, // Keep resolved rules for references
-      });
+      activePages.push(page);
+      pageRulesMap.set(page.url, rules);
     }
   }
 
@@ -297,7 +318,7 @@ export function runAnalysis(pages, config, options = {}) {
 
   // 2. Freshness & Thin Content checks
   for (const p of pageResults) {
-    const rules = resolveRulesForPath(config, p.url);
+    const rules = pageRulesMap.get(p.url) || resolveRulesForPath(config, p.url);
 
     // Freshness check
     if (!p.date) {
@@ -414,10 +435,12 @@ export function runAnalysis(pages, config, options = {}) {
 
     // If no inbound links, check if it's a configured entry page
     if (inLinks.size === 0) {
-      const rules = resolveRulesForPath(config, p.url);
-      const entryPagesNormalized = (rules.entry_pages || []).map(getRelativePath);
+      const rules = pageRulesMap.get(p.url) || resolveRulesForPath(config, p.url);
+      if (!rules._entryPagesNormalized) {
+        rules._entryPagesNormalized = (rules.entry_pages || []).map(getRelativePath);
+      }
 
-      if (!entryPagesNormalized.includes(p.relativePath)) {
+      if (!rules._entryPagesNormalized.includes(p.relativePath)) {
         p.findings.push({
           ...FINDING_TYPES.ORPHAN,
           message: 'Page is an orphan with no internal inbound links.',

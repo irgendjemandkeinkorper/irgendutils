@@ -15,6 +15,17 @@ export const DEFAULTS = {
  */
 export function getRelativePath(url) {
   if (!url) return '/';
+
+  // Fast path for simple relative paths starting with '/' to bypass full URL object allocations
+  if (typeof url === 'string' && url.startsWith('/')) {
+    const hashIdx = url.indexOf('#');
+    let cleanUrl = hashIdx !== -1 ? url.slice(0, hashIdx) : url;
+    if (cleanUrl.length > 1 && cleanUrl.endsWith('/')) {
+      cleanUrl = cleanUrl.slice(0, -1);
+    }
+    return cleanUrl || '/';
+  }
+
   try {
     const parsed = new URL(url, 'https://example.local');
     let path = parsed.pathname;
@@ -54,7 +65,11 @@ export function resolveRulesForPath(config, url) {
   for (const rule of config.rules) {
     if (!rule || !rule.path) continue;
     try {
-      const regex = new RegExp(rule.path);
+      // Lazy compile and cache RegExp instance on rule object to prevent expensive RegExp re-instantiation in hot loops
+      if (!rule._regex) {
+        rule._regex = new RegExp(rule.path);
+      }
+      const regex = rule._regex;
       if (regex.test(relPath)) {
         if (rule.exclude !== undefined) {
           resolved.exclude = !!rule.exclude;
