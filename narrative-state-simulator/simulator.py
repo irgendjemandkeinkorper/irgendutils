@@ -13,6 +13,8 @@ class StoryState:
         self.variables = frozenset(self._sorted_variables)
         # Performance optimization: Cache dict representation for fast retrieval in hot loops
         self._dict = dict(self._sorted_variables)
+        # Performance optimization: Precompute and cache hash value for fast O(1) set/dict lookups
+        self._hash = hash((self.scene_id, self.variables))
 
     def _freeze_val(self, val: Any) -> Any:
         if isinstance(val, list):
@@ -27,7 +29,7 @@ class StoryState:
         return self._dict.copy()
 
     def __hash__(self) -> int:
-        return hash((self.scene_id, self.variables))
+        return self._hash
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, StoryState):
@@ -257,9 +259,11 @@ class NarrativeSimulator:
         # Initialize BFS structures
         start_state = StoryState(self.start_scene, self.initial_variables)
 
-        # visited_states maps StoryState -> list of transition dicts
-        # e.g., [{"scene": "scene1", "choice": "Go east", "target": "scene2"}]
-        visited_states: Dict[StoryState, List[Dict[str, Any]]] = {start_state: []}
+        # Performance optimization: Use parent pointers in visited_states mapping
+        # state -> (parent_state, transition_step) or None for start_state.
+        # This avoids copying growing witness path lists on every BFS state discovery.
+        visited_states: Dict[StoryState, Optional[Tuple[StoryState, Dict[str, Any]]]] = {start_state: None}
+        state_depths: Dict[StoryState, int] = {start_state: 0}
 
         # State-transition graph edges: (from_state, to_state, choice_index, choice_text)
         stg_edges: Set[Tuple[StoryState, StoryState, int, str]] = set()
@@ -332,13 +336,13 @@ class NarrativeSimulator:
                     stg_edges.add((state, next_state, idx, text))
 
                     if next_state not in visited_states:
-                        # Append transition to witness path
-                        new_path = visited_states[state] + [{
+                        # Performance optimization: Store lightweight parent pointer transition instead of cloning list
+                        visited_states[next_state] = (state, {
                             "scene": state.scene_id,
                             "choice": text,
                             "target": target
-                        }]
-                        visited_states[next_state] = new_path
+                        })
+                        state_depths[next_state] = depth + 1
                         queue.append((next_state, depth + 1))
 
         # --- Dynamic Analysis Metrics ---
@@ -429,6 +433,17 @@ class NarrativeSimulator:
                 })
         impossible_conditions.sort(key=lambda x: (x["scene"], x["choice_index"]))
 
+        # Helper to reconstruct witness paths on demand from parent pointer chains
+        def get_witness_path(st: StoryState) -> List[Dict[str, Any]]:
+            path = []
+            curr = st
+            while visited_states[curr] is not None:
+                parent_st, transition = visited_states[curr] # type: ignore
+                path.append(transition)
+                curr = parent_st
+            path.reverse()
+            return path
+
         # 6. Shortest Witness Paths to Scenes
         # Performance optimization: Pre-group states by scene_id to avoid repeated full iterations
         states_by_scene: Dict[str, List[StoryState]] = {}
@@ -439,8 +454,8 @@ class NarrativeSimulator:
         for scene_id in reachable_scenes:
             states_for_scene = states_by_scene.get(scene_id, [])
             if states_for_scene:
-                best_state = min(states_for_scene, key=lambda st: len(visited_states[st]))
-                scene_witness_paths[scene_id] = visited_states[best_state]
+                best_state = min(states_for_scene, key=lambda st: state_depths[st])
+                scene_witness_paths[scene_id] = get_witness_path(best_state)
 
         # Format dead ends to include witness paths (sorted stably using precomputed keys)
         dead_end_states.sort(key=lambda st: (st.scene_id, st._sorted_variables))
@@ -449,7 +464,7 @@ class NarrativeSimulator:
             formatted_dead_ends.append({
                 "scene": st.scene_id,
                 "variables": st.to_dict(),
-                "witness_path": visited_states[st]
+                "witness_path": get_witness_path(st)
             })
 
         # Format soft locks to include witness paths
@@ -458,7 +473,7 @@ class NarrativeSimulator:
             formatted_soft_locks.append({
                 "scene": st.scene_id,
                 "variables": st.to_dict(),
-                "witness_path": visited_states[st]
+                "witness_path": get_witness_path(st)
             })
 
         # Format edges for DOT generation
