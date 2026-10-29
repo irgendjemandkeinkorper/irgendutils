@@ -21,6 +21,7 @@ const COLUMN_CHILD_RE = /(^|\s)col(umn)?(-[\w-]+)?(\s|$)/;
 // --- text helpers ---------------------------------------------------------
 
 export function escapeText(text) {
+  // Fast path: skip regex execution if string contains no HTML special characters
   if (!text.includes('&') && !text.includes('<') && !text.includes('>')) {
     return text;
   }
@@ -32,6 +33,7 @@ export function escapeText(text) {
 
 function escapeAttr(value) {
   const str = String(value);
+  // Fast path: skip regex execution if attribute contains no special characters
   if (!str.includes('&') && !str.includes('<') && !str.includes('>') && !str.includes('"')) {
     return str;
   }
