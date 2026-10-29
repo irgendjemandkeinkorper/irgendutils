@@ -21,6 +21,9 @@ const COLUMN_CHILD_RE = /(^|\s)col(umn)?(-[\w-]+)?(\s|$)/;
 // --- text helpers ---------------------------------------------------------
 
 export function escapeText(text) {
+  if (!text.includes('&') && !text.includes('<') && !text.includes('>')) {
+    return text;
+  }
   return text
     .replace(/&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -28,7 +31,11 @@ export function escapeText(text) {
 }
 
 function escapeAttr(value) {
-  return escapeText(String(value)).replace(/"/g, '&quot;');
+  const str = String(value);
+  if (!str.includes('&') && !str.includes('<') && !str.includes('>') && !str.includes('"')) {
+    return str;
+  }
+  return escapeText(str).replace(/"/g, '&quot;');
 }
 
 function collapse(html) {
