@@ -44,8 +44,8 @@ def normalize_url_to_path(url: str, old_url: str = None, new_url: str = None) ->
 
     # 4. Clean up any remaining leading slashes or query parameters / hashes
     # BOLT OPTIMIZATION: Fast-path bypass urlparse for relative paths without query strings,
-    # fragments, or scheme specifiers (~1.68x overall speedup across media parsing loops)
-    if '?' in decoded_url or '#' in decoded_url or '://' in decoded_url:
+    # fragments, or scheme / protocol-relative specifiers (~1.68x overall speedup across media parsing loops)
+    if '?' in decoded_url or '#' in decoded_url or '//' in decoded_url:
         path_part = urlparse(decoded_url).path
     else:
         path_part = decoded_url
