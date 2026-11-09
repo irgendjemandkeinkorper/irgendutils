@@ -9,7 +9,7 @@
   "type": "module",
   "scripts": {
     "dev": "node src/create-repo.js",
-    "test": "echo 'Add tests here'",
+    "test": "node --test",
     "lint": "echo 'Add linting here'"
   },
   "keywords": [
